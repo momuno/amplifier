@@ -51,6 +51,9 @@ default: ## Show essential commands
 	@echo "Article Illustration:"
 	@echo "  make illustrate      Generate AI illustrations for article"
 	@echo ""
+	@echo "Repository Analysis:"
+	@echo "  make repo-synthesize Analyze repository for insights"
+	@echo ""
 	@echo "Web to Markdown:"
 	@echo "  make web-to-md       Convert web pages to markdown"
 	@echo ""
@@ -128,6 +131,11 @@ help: ## Show ALL available commands
 	@echo "  make illustrate INPUT=<file> [OUTPUT=<path>] [STYLE=\"...\"] [APIS=\"...\"] [RESUME=true]  Generate illustrations"
 	@echo "  make illustrate-example  Run illustrator with example article"
 	@echo "  make illustrate-prompts-only INPUT=<file>  Preview prompts without generating"
+	@echo ""
+	@echo "REPOSITORY ANALYSIS:"
+	@echo "  make repo-synthesize TOPIC=\"...\" [REPO=<path>] [OUTPUT=<file>]  Analyze repository for insights"
+	@echo "  make repo-synthesize-example  Run with example analysis"
+	@echo "  Optional params: INCLUDE=\"*.py,*.md\" EXCLUDE=\"node_modules\" MAX_DEPTH=10 NO_PAPER_TRAIL=true RESUME=session_id"
 	@echo ""
 	@echo "WEB TO MARKDOWN:"
 	@echo "  make web-to-md URL=<url> [URL2=<url>] [OUTPUT=<path>]  Convert web pages to markdown (saves to content_dirs[0]/sites/)"
@@ -625,6 +633,33 @@ illustrate-prompts-only: ## Preview prompts without generating images. Usage: ma
 	fi
 	@echo "🎨 Generating prompts (no images)..."
 	@uv run python -m scenarios.article_illustrator "$(INPUT)" --prompts-only
+
+# Repository Synthesizer
+repo-synthesize: ## Analyze repository structure for insights. Usage: make repo-synthesize TOPIC="your question" [REPO=path] [OUTPUT=file.md] [RESUME=session_id]
+	@if [ -z "$(TOPIC)" ]; then \
+		echo "Error: Please provide a synthesis topic. Usage: make repo-synthesize TOPIC=\"What novel capabilities does this offer?\""; \
+		exit 1; \
+	fi
+	@echo "🔍 Synthesizing repository insights..."
+	@echo "  Topic: $(TOPIC)"
+	@if [ -n "$(REPO)" ]; then echo "  Repository: $(REPO)"; else echo "  Repository: current directory"; fi
+	@if [ -n "$(OUTPUT)" ]; then echo "  Output: $(OUTPUT)"; else echo "  Output: repository_synthesis.md"; fi
+	@if [ -n "$(RESUME)" ]; then echo "  Resuming session: $(RESUME)"; fi
+	@CMD="uv run python -m scenarios.repo_synthesizer --topic \"$(TOPIC)\""; \
+	if [ -n "$(REPO)" ]; then CMD="$$CMD --repo-path \"$(REPO)\""; fi; \
+	if [ -n "$(OUTPUT)" ]; then CMD="$$CMD --output \"$(OUTPUT)\""; fi; \
+	if [ -n "$(RESUME)" ]; then CMD="$$CMD --resume \"$(RESUME)\""; fi; \
+	if [ -n "$(INCLUDE)" ]; then CMD="$$CMD --include \"$(INCLUDE)\""; fi; \
+	if [ -n "$(EXCLUDE)" ]; then CMD="$$CMD --exclude \"$(EXCLUDE)\""; fi; \
+	if [ -n "$(MAX_DEPTH)" ]; then CMD="$$CMD --max-depth $(MAX_DEPTH)"; fi; \
+	if [ "$(NO_PAPER_TRAIL)" = "true" ]; then CMD="$$CMD --no-paper-trail"; fi; \
+	eval $$CMD
+
+repo-synthesize-example: ## Run repo synthesizer with example analysis
+	@echo "🔍 Running repo synthesizer with example analysis..."
+	@uv run python -m scenarios.repo_synthesizer \
+		--topic "What novel capabilities and interesting problems does this codebase solve?" \
+		--max-depth 3
 
 # Web to Markdown
 web-to-md: ## Convert web pages to markdown. Usage: make web-to-md URL=https://example.com [URL2=https://another.com] [OUTPUT=path]
