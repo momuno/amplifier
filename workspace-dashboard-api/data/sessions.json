@@ -1,0 +1,32 @@
+[
+  {
+    "id": "sess-1760561231449",
+    "project_name": "me new project",
+    "name": "test 1",
+    "state": "PLANNING",
+    "notes": "notes for myself",
+    "branch": "feature/test-1",
+    "last_activity": "2025-10-15T13:47:11.449924",
+    "files_changed": 0,
+    "commits": 0,
+    "todos_complete": 0,
+    "todos_total": 0,
+    "size": "medium",
+    "parent_id": null
+  },
+  {
+    "id": "sess-1760561240266",
+    "project_name": "me new project",
+    "name": "test 1 (Fork 1)",
+    "state": "PLANNING",
+    "notes": "notes for myself",
+    "branch": "feature/test-1-fork-1",
+    "last_activity": "2025-10-15T13:47:20.266727",
+    "files_changed": 0,
+    "commits": 0,
+    "todos_complete": 0,
+    "todos_total": 0,
+    "size": "medium",
+    "parent_id": "sess-1760561231449"
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "sess-1760561231449": {
+    "w": 4,
+    "h": 5,
+    "x": 0,
+    "y": 0,
+    "i": "sess-1760561231449",
+    "minW": 3,
+    "maxW": 8,
+    "minH": 3,
+    "maxH": 8,
+    "moved": false,
+    "static": false
+  },
+  "sess-1760561240266": {
+    "w": 8,
+    "h": 8,
+    "x": 4,
+    "y": 0,
+    "i": "sess-1760561240266",
+    "minW": 3,
+    "maxW": 8,
+    "minH": 3,
+    "maxH": 8,
+    "moved": false,
+    "static": false
+  }
+}

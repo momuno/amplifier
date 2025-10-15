@@ -57,6 +57,8 @@ exclude = [
     ".venv/**",
     "scenarios/*/.venv/**",
     "node_modules/**",
+    "workspace-dashboard-v2/**",
+    "workspace-dashboard-web/node_modules/**",
     ".git/**",
     ".ruff_cache/**",
     ".pytest_cache/**",
