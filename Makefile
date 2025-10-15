@@ -54,6 +54,9 @@ default: ## Show essential commands
 	@echo "Web to Markdown:"
 	@echo "  make web-to-md       Convert web pages to markdown"
 	@echo ""
+	@echo "Terminal Ideation:"
+	@echo "  make ideate          Explore ideas in parallel with Claude Code"
+	@echo ""
 	@echo "Other:"
 	@echo "  make clean          Clean build artifacts"
 	@echo "  make help           Show ALL available commands"
@@ -640,6 +643,35 @@ web-to-md: ## Convert web pages to markdown. Usage: make web-to-md URL=https://e
 	if [ -n "$(URL5)" ]; then CMD="$$CMD --url \"$(URL5)\""; fi; \
 	if [ -n "$(OUTPUT)" ]; then CMD="$$CMD --output \"$(OUTPUT)\""; fi; \
 	eval $$CMD
+
+# Terminal Ideation
+ideate: ## Explore ideas in parallel with Claude Code. Usage: make ideate IDEA="your idea" [VARIANTS=3] [STYLE=exploratory]
+	@if [ -z "$(IDEA)" ]; then \
+		echo "Error: Please provide an idea. Usage: make ideate IDEA=\"your idea to explore\""; \
+		exit 1; \
+	fi
+	@echo "🚀 Launching Terminal Ideation Tool..."
+	@echo "  Idea: $(IDEA)"
+	@variants="$${VARIANTS:-3}"; \
+	style="$${STYLE:-exploratory}"; \
+	echo "  Variants: $$variants ($$style style)"; \
+	uv run python scenarios/terminal_ideation/terminal_ideation.py "$(IDEA)" \
+		--variants $$variants \
+		--style $$style
+
+ideate-status: ## Check status of ideation sessions. Usage: make ideate-status [SESSION=id]
+	@if [ -n "$(SESSION)" ]; then \
+		uv run python scenarios/terminal_ideation/terminal_ideation.py --status "$(SESSION)"; \
+	else \
+		uv run python scenarios/terminal_ideation/terminal_ideation.py --list; \
+	fi
+
+ideate-cleanup: ## Clean up an ideation session. Usage: make ideate-cleanup SESSION=id
+	@if [ -z "$(SESSION)" ]; then \
+		echo "Error: Please provide a session ID. Usage: make ideate-cleanup SESSION=abc123"; \
+		exit 1; \
+	fi
+	@uv run python scenarios/terminal_ideation/terminal_ideation.py --cleanup "$(SESSION)"
 
 # Clean WSL Files
 clean-wsl-files: ## Clean up WSL-related files (Zone.Identifier, sec.endpointdlp)
