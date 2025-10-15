@@ -1,0 +1,80 @@
+{
+  "9ab5726d-a785-4292-a2d9-78e7209dbea3": {
+    "id": "9ab5726d-a785-4292-a2d9-78e7209dbea3",
+    "project_name": "Dashboard Creation demo",
+    "task_name": "Project exploration",
+    "status": "idle",
+    "last_accomplishment": null,
+    "next_action": null,
+    "created_at": "2025-10-14 00:31:33.245703",
+    "updated_at": "2025-10-14 19:37:06.685333",
+    "last_interaction": "2025-10-14 00:31:33.245708",
+    "outputs": [],
+    "metadata": {}
+  },
+  "96a151b1-ed2c-4ba9-9c95-6d452e2275e6": {
+    "id": "96a151b1-ed2c-4ba9-9c95-6d452e2275e6",
+    "project_name": "Dashboard Creation",
+    "task_name": "synthesis repo",
+    "status": "idle",
+    "last_accomplishment": null,
+    "next_action": null,
+    "created_at": "2025-10-14 00:31:56.488831",
+    "updated_at": "2025-10-14 19:37:51.286514",
+    "last_interaction": "2025-10-14 00:31:56.488841",
+    "outputs": [],
+    "metadata": {}
+  },
+  "758e7569-7c2f-4911-bdb7-11b832e1afff": {
+    "id": "758e7569-7c2f-4911-bdb7-11b832e1afff",
+    "project_name": "test 345",
+    "task_name": "1",
+    "status": "idle",
+    "last_accomplishment": null,
+    "next_action": null,
+    "created_at": "2025-10-14 18:03:40.441057",
+    "updated_at": "2025-10-14 19:37:01.550625",
+    "last_interaction": "2025-10-14 18:03:40.441062",
+    "outputs": [],
+    "metadata": {}
+  },
+  "fe201bad-860d-4dee-a468-7cdead7eb609": {
+    "id": "fe201bad-860d-4dee-a468-7cdead7eb609",
+    "project_name": "E-Commerce",
+    "task_name": "Add shopping cart feature",
+    "status": "idle",
+    "last_accomplishment": null,
+    "next_action": null,
+    "created_at": "2025-10-14 18:14:20.437869",
+    "updated_at": "2025-10-14 19:36:54.802436",
+    "last_interaction": "2025-10-14 18:14:20.437874",
+    "outputs": [],
+    "metadata": {}
+  },
+  "bc0dc602-c736-49c9-a48c-356a9ac6c649": {
+    "id": "bc0dc602-c736-49c9-a48c-356a9ac6c649",
+    "project_name": "new project",
+    "task_name": "explore features",
+    "status": "idle",
+    "last_accomplishment": null,
+    "next_action": null,
+    "created_at": "2025-10-14 19:47:57.131754",
+    "updated_at": "2025-10-14 19:47:57.131759",
+    "last_interaction": "2025-10-14 19:47:57.131760",
+    "outputs": [],
+    "metadata": {}
+  },
+  "42606944-ea2f-4148-a31b-d0a9fdac484e": {
+    "id": "42606944-ea2f-4148-a31b-d0a9fdac484e",
+    "project_name": "Dashboard Creation test",
+    "task_name": "another task",
+    "status": "idle",
+    "last_accomplishment": null,
+    "next_action": null,
+    "created_at": "2025-10-14 19:48:14.657358",
+    "updated_at": "2025-10-14 19:48:23.505534",
+    "last_interaction": "2025-10-14 19:48:14.657363",
+    "outputs": [],
+    "metadata": {}
+  }
+}

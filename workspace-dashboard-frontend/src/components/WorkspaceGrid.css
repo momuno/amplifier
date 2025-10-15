@@ -1,0 +1,21 @@
+.workspace-grid {
+  width: 100%;
+  min-height: 100vh;
+  background: #0f0f0f;
+}
+
+.grid-item-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+/* Override react-grid-layout styles for dark theme */
+.react-grid-item {
+  background: transparent;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: #3b82f6;
+  opacity: 0.1;
+  border-radius: 8px;
+}

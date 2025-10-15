@@ -1,0 +1,204 @@
+.session-card {
+  background: #1a1a1a;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.session-card:hover {
+  background: #222;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  cursor: pointer;
+}
+
+.session-card.selected {
+  background: #1f2937;
+  border-color: #60a5fa;
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+}
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.drag-handle {
+  cursor: move;
+  color: #6b7280;
+  font-size: 20px;
+  padding: 0 8px;
+  user-select: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+  color: #3b82f6;
+}
+
+.session-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+.session-title h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.status-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.status-icon.active {
+  color: #3b82f6;
+  animation: pulse 2s infinite;
+}
+
+.status-icon.completed {
+  color: #10b981;
+}
+
+.status-icon.error {
+  color: #ef4444;
+}
+
+.status-icon.idle {
+  color: #6b7280;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.close-button:hover {
+  color: #ef4444;
+}
+
+.session-task,
+.session-accomplishment,
+.session-action {
+  margin-bottom: 8px;
+}
+
+.label {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #9ca3af;
+  margin-right: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.value {
+  display: inline-block;
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.session-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #374151;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.session-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.session-outputs {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Edit mode styles */
+.edit-input {
+  background: #2a2a2a;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #fff;
+  font-size: inherit;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+}
+
+.edit-input.project-edit {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.edit-input.task-edit {
+  font-size: 14px;
+}
+
+.session-title h3,
+.value.editable {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s;
+}
+
+.session-title h3:hover,
+.value.editable:hover {
+  color: #60a5fa;
+}
+
+.edit-icon {
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.session-title h3:hover .edit-icon,
+.value.editable:hover .edit-icon {
+  opacity: 0.6;
+}

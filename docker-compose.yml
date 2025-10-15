@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./workspace-dashboard-backend
+    container_name: workspace-dashboard-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sessions:/app/sessions
+      - ./session_outputs:/app/session_outputs
+      - ./layouts.json:/app/layouts.json
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+      - SESSION_DIR=/app/sessions
+    restart: unless-stopped
+    networks:
+      - workspace-network
+
+  frontend:
+    build: ./workspace-dashboard-frontend
+    container_name: workspace-dashboard-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - workspace-network
+
+networks:
+  workspace-network:
+    driver: bridge
+
+volumes:
+  sessions:
+  session_outputs:

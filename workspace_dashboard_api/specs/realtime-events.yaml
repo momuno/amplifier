@@ -1,0 +1,316 @@
+# Real-time Event Contracts for Claude Code Workspace Dashboard
+# Using Server-Sent Events (SSE) for simplicity and one-way communication
+
+asyncapi: 3.0.0
+info:
+  title: Workspace Dashboard Real-time Events
+  version: 1.0.0
+  description: |
+    SSE event contracts for real-time dashboard updates.
+    Simple, focused event delivery without complex routing.
+
+servers:
+  production:
+    host: localhost:8080
+    pathname: /api/v1/events
+    protocol: sse
+    description: Server-Sent Events endpoint
+
+channels:
+  sessionEvents:
+    address: /sessions/{sessionId}
+    messages:
+      statusChanged:
+        $ref: '#/components/messages/SessionStatusChanged'
+      taskUpdated:
+        $ref: '#/components/messages/TaskUpdated'
+      outputGenerated:
+        $ref: '#/components/messages/OutputGenerated'
+      errorOccurred:
+        $ref: '#/components/messages/ErrorOccurred'
+    parameters:
+      sessionId:
+        description: Session identifier to subscribe to
+        schema:
+          type: string
+    description: |
+      Subscribe to events for a specific session.
+      Connection: GET /api/v1/events/sessions/{sessionId}
+
+  dashboardEvents:
+    address: /dashboard
+    messages:
+      sessionCreated:
+        $ref: '#/components/messages/SessionCreated'
+      sessionClosed:
+        $ref: '#/components/messages/SessionClosed'
+      layoutChanged:
+        $ref: '#/components/messages/LayoutChanged'
+    description: |
+      Subscribe to dashboard-wide events.
+      Connection: GET /api/v1/events/dashboard
+
+components:
+  messages:
+    SessionStatusChanged:
+      name: session.status
+      title: Session Status Changed
+      summary: Emitted when session status changes
+      contentType: application/json
+      payload:
+        type: object
+        required: [event, data]
+        properties:
+          event:
+            type: string
+            const: session.status
+          data:
+            type: object
+            required: [session_id, status, timestamp]
+            properties:
+              session_id:
+                type: string
+              status:
+                type: string
+                enum: [active, idle, thinking, executing, error]
+              previous_status:
+                type: string
+                enum: [active, idle, thinking, executing, error]
+              timestamp:
+                type: string
+                format: date-time
+      examples:
+        - payload:
+            event: session.status
+            data:
+              session_id: sess_abc123
+              status: executing
+              previous_status: thinking
+              timestamp: "2025-01-23T10:30:00Z"
+
+    TaskUpdated:
+      name: session.task
+      title: Task Updated
+      summary: Emitted when current or next task changes
+      contentType: application/json
+      payload:
+        type: object
+        required: [event, data]
+        properties:
+          event:
+            type: string
+            const: session.task
+          data:
+            type: object
+            required: [session_id, timestamp]
+            properties:
+              session_id:
+                type: string
+              current_task:
+                type: string
+              next_task:
+                type: string
+              task_progress:
+                type: integer
+                minimum: 0
+                maximum: 100
+              timestamp:
+                type: string
+                format: date-time
+      examples:
+        - payload:
+            event: session.task
+            data:
+              session_id: sess_abc123
+              current_task: "Running test suite"
+              next_task: "Fix failing tests"
+              task_progress: 45
+              timestamp: "2025-01-23T10:32:00Z"
+
+    OutputGenerated:
+      name: session.output
+      title: Output Generated
+      summary: Emitted when session produces output (file, artifact)
+      contentType: application/json
+      payload:
+        type: object
+        required: [event, data]
+        properties:
+          event:
+            type: string
+            const: session.output
+          data:
+            type: object
+            required: [session_id, type, timestamp]
+            properties:
+              session_id:
+                type: string
+              type:
+                type: string
+                enum: [file_created, file_modified, file_deleted, artifact_generated]
+              path:
+                type: string
+                description: File path or artifact URL
+              name:
+                type: string
+                description: Human-readable name
+              timestamp:
+                type: string
+                format: date-time
+      examples:
+        - payload:
+            event: session.output
+            data:
+              session_id: sess_abc123
+              type: file_created
+              path: "src/api/routes.py"
+              name: "API Routes"
+              timestamp: "2025-01-23T10:35:00Z"
+
+    ErrorOccurred:
+      name: session.error
+      title: Error Occurred
+      summary: Emitted when session encounters an error
+      contentType: application/json
+      payload:
+        type: object
+        required: [event, data]
+        properties:
+          event:
+            type: string
+            const: session.error
+          data:
+            type: object
+            required: [session_id, error_code, message, timestamp]
+            properties:
+              session_id:
+                type: string
+              error_code:
+                type: string
+              message:
+                type: string
+              details:
+                type: object
+                additionalProperties: true
+              recoverable:
+                type: boolean
+                default: true
+              timestamp:
+                type: string
+                format: date-time
+      examples:
+        - payload:
+            event: session.error
+            data:
+              session_id: sess_abc123
+              error_code: "TEST_FAILURE"
+              message: "3 tests failed in test_auth.py"
+              details:
+                failed_tests: 3
+                total_tests: 25
+              recoverable: true
+              timestamp: "2025-01-23T10:40:00Z"
+
+    SessionCreated:
+      name: dashboard.session.created
+      title: Session Created
+      summary: Broadcast when new session is created
+      contentType: application/json
+      payload:
+        type: object
+        required: [event, data]
+        properties:
+          event:
+            type: string
+            const: dashboard.session.created
+          data:
+            type: object
+            required: [session_id, workspace, timestamp]
+            properties:
+              session_id:
+                type: string
+              workspace:
+                type: string
+              project_name:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+
+    SessionClosed:
+      name: dashboard.session.closed
+      title: Session Closed
+      summary: Broadcast when session is closed
+      contentType: application/json
+      payload:
+        type: object
+        required: [event, data]
+        properties:
+          event:
+            type: string
+            const: dashboard.session.closed
+          data:
+            type: object
+            required: [session_id, timestamp]
+            properties:
+              session_id:
+                type: string
+              reason:
+                type: string
+                enum: [user_requested, timeout, error]
+              timestamp:
+                type: string
+                format: date-time
+
+    LayoutChanged:
+      name: dashboard.layout.changed
+      title: Layout Changed
+      summary: Broadcast when dashboard layout is modified
+      contentType: application/json
+      payload:
+        type: object
+        required: [event, data]
+        properties:
+          event:
+            type: string
+            const: dashboard.layout.changed
+          data:
+            type: object
+            required: [user_id, timestamp]
+            properties:
+              user_id:
+                type: string
+              change_type:
+                type: string
+                enum: [tile_added, tile_removed, tile_moved, tile_resized]
+              tile_id:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+
+# SSE Connection Examples
+#
+# Client connection for session-specific events:
+# ```javascript
+# const eventSource = new EventSource('/api/v1/events/sessions/sess_abc123', {
+#   headers: { 'X-API-Key': 'your-api-key' }
+# });
+# 
+# eventSource.addEventListener('session.status', (e) => {
+#   const data = JSON.parse(e.data);
+#   console.log('Status changed:', data);
+# });
+# ```
+#
+# Client connection for dashboard-wide events:
+# ```javascript
+# const dashboardEvents = new EventSource('/api/v1/events/dashboard', {
+#   headers: { 'X-API-Key': 'your-api-key' }
+# });
+# 
+# dashboardEvents.addEventListener('dashboard.session.created', (e) => {
+#   const data = JSON.parse(e.data);
+#   console.log('New session:', data);
+# });
+# ```

@@ -167,6 +167,30 @@ Enable with:
 
 ## 🎯 Key Features
 
+### Workspace Dashboard [NEW]
+
+Monitor and manage multiple Claude Code sessions in real-time with the new Workspace Dashboard:
+
+**Features**:
+- **Real-time session monitoring** - Track status, accomplishments, and next actions
+- **Draggable grid layout** - Azure Portal-style customizable interface
+- **SSE updates** - Instant notification of session changes
+- **File output tracking** - Monitor generated files from each session
+- **Visual status indicators** - Color-coded cards (active, completed, error, idle)
+
+**Quick Start**:
+```bash
+# Using Docker Compose
+cd workspace-dashboard
+docker-compose up
+
+# Or manually
+cd workspace-dashboard-backend && uvicorn main:app --reload
+cd workspace-dashboard-frontend && npm install && npm run dev
+```
+
+Access at http://localhost:3000
+
 ### Specialized Agents
 
 Instead of one generalist AI, you get 20+ specialists:

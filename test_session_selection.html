@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Session Selection</title>
+</head>
+<body>
+    <h1>Testing Session Selection Fix</h1>
+    <p>This test verifies that the session card selection is working properly.</p>
+
+    <h2>Expected Behavior:</h2>
+    <ul>
+        <li>✅ Clicking on a session card should select it immediately</li>
+        <li>✅ The selected card should have a blue glow/highlight</li>
+        <li>✅ Clicking another card should switch the selection</li>
+        <li>✅ The file sidebar should update to show the selected session's files</li>
+        <li>✅ Only the drag handle (⋮⋮) should allow dragging, not the entire card</li>
+    </ul>
+
+    <h2>Implementation Changes:</h2>
+    <ol>
+        <li>Added <code>draggableHandle=".drag-handle"</code> to the grid layout to limit dragging to specific handle</li>
+        <li>Added drag handle element (⋮⋮) to the session card header</li>
+        <li>Added <code>e.stopPropagation()</code> to click and mouseDown handlers</li>
+        <li>Added console.log to track click events</li>
+    </ol>
+
+    <h2>How to Test:</h2>
+    <ol>
+        <li>Open browser developer console (F12)</li>
+        <li>Navigate to <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></li>
+        <li>Click on different session cards</li>
+        <li>Look for "Session clicked: [id]" messages in console</li>
+        <li>Verify the card gets highlighted with blue border</li>
+        <li>Check that the file sidebar updates</li>
+        <li>Try dragging cards using the drag handle vs clicking on card body</li>
+    </ol>
+
+    <script>
+        console.log('Test page loaded. Open http://localhost:5173 to test the fix.');
+    </script>
+</body>
+</html>

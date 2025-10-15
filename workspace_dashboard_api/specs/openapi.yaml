@@ -1,0 +1,552 @@
+openapi: 3.1.0
+info:
+  title: Claude Code Workspace Dashboard API
+  version: 1.0.0
+  description: |
+    Minimal API for managing multiple Claude Code sessions through a visual dashboard.
+    Built with 'bricks and studs' philosophy - each endpoint has a single clear purpose.
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+
+paths:
+  # Session Management
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List all active sessions
+      tags: [Sessions]
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionSummary'
+              example:
+                sessions:
+                  - id: "sess_abc123"
+                    workspace: "amplifier-workspace"
+                    project_name: "Dashboard API"
+                    status: "active"
+                    last_action: "Designed API contract"
+                    last_interaction: "2025-01-23T10:30:00Z"
+                  - id: "sess_def456"
+                    workspace: "web-scraper"
+                    project_name: "Scraper Tool"
+                    status: "idle"
+                    last_action: "Fixed parsing bug"
+                    last_interaction: "2025-01-23T09:15:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    post:
+      operationId: createSession
+      summary: Create a new Claude session
+      tags: [Sessions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workspace]
+              properties:
+                workspace:
+                  type: string
+                  description: Workspace/repository path
+                project_name:
+                  type: string
+                  description: Human-friendly project name
+                initial_prompt:
+                  type: string
+                  description: Optional initial prompt to send
+            example:
+              workspace: "/home/user/projects/my-app"
+              project_name: "My Application"
+              initial_prompt: "Help me refactor the authentication module"
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sessions/{sessionId}:
+    get:
+      operationId: getSession
+      summary: Get session details
+      tags: [Sessions]
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    patch:
+      operationId: updateSessionState
+      summary: Update session state (e.g., current task, status)
+      tags: [Sessions]
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, idle, thinking, executing, error]
+                current_task:
+                  type: string
+                  description: Current task description
+                next_task:
+                  type: string
+                  description: Planned next task
+            example:
+              status: "executing"
+              current_task: "Running test suite"
+              next_task: "Fix failing tests"
+      responses:
+        '200':
+          description: Session updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    delete:
+      operationId: closeSession
+      summary: Close/archive a session
+      tags: [Sessions]
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      responses:
+        '204':
+          description: Session closed
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sessions/{sessionId}/outputs:
+    get:
+      operationId: getSessionOutputs
+      summary: Get session outputs (files, artifacts)
+      tags: [Sessions]
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      responses:
+        '200':
+          description: Session outputs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files_modified:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        action:
+                          type: string
+                          enum: [created, modified, deleted]
+                        timestamp:
+                          type: string
+                          format: date-time
+                  artifacts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        url:
+                          type: string
+              example:
+                files_modified:
+                  - path: "src/api/sessions.py"
+                    action: "created"
+                    timestamp: "2025-01-23T10:30:00Z"
+                  - path: "tests/test_sessions.py"
+                    action: "modified"
+                    timestamp: "2025-01-23T10:35:00Z"
+                artifacts:
+                  - name: "API Documentation"
+                    type: "markdown"
+                    url: "/artifacts/api-docs.md"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Dashboard Layout Management
+  /layouts:
+    get:
+      operationId: getLayout
+      summary: Get current dashboard layout
+      tags: [Layouts]
+      responses:
+        '200':
+          description: Current layout configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Layout'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    put:
+      operationId: saveLayout
+      summary: Save dashboard layout
+      tags: [Layouts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Layout'
+      responses:
+        '200':
+          description: Layout saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Layout'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Workspace Management
+  /workspaces:
+    get:
+      operationId: listWorkspaces
+      summary: List available workspaces
+      tags: [Workspaces]
+      responses:
+        '200':
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspaces:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        name:
+                          type: string
+                        last_accessed:
+                          type: string
+                          format: date-time
+                        git_branch:
+                          type: string
+              example:
+                workspaces:
+                  - path: "/home/user/amplifier-workspace"
+                    name: "Amplifier Workspace"
+                    last_accessed: "2025-01-23T10:00:00Z"
+                    git_branch: "main"
+                  - path: "/home/user/web-scraper"
+                    name: "Web Scraper Tool"
+                    last_accessed: "2025-01-22T15:30:00Z"
+                    git_branch: "feature/new-parser"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Meta-Session Operations
+  /sessions/compare:
+    post:
+      operationId: compareSessions
+      summary: Compare outputs from multiple sessions
+      tags: [Meta]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_ids]
+              properties:
+                session_ids:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 2
+                  maxItems: 10
+            example:
+              session_ids: ["sess_abc123", "sess_def456"]
+      responses:
+        '200':
+          description: Comparison results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionSummary'
+                  differences:
+                    type: object
+                    properties:
+                      files_modified:
+                        type: object
+                      outputs_generated:
+                        type: object
+                      performance_metrics:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sessions/stats:
+    get:
+      operationId: getSessionStats
+      summary: Get aggregate session statistics
+      tags: [Meta]
+      responses:
+        '200':
+          description: Session statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_sessions:
+                    type: integer
+                  active_sessions:
+                    type: integer
+                  tasks_completed_today:
+                    type: integer
+                  files_modified_today:
+                    type: integer
+                  average_session_duration:
+                    type: integer
+                    description: Duration in seconds
+              example:
+                total_sessions: 42
+                active_sessions: 3
+                tasks_completed_today: 15
+                files_modified_today: 38
+                average_session_duration: 1800
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  parameters:
+    sessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique session identifier
+
+  schemas:
+    SessionSummary:
+      type: object
+      required: [id, workspace, status, last_interaction]
+      properties:
+        id:
+          type: string
+          description: Unique session identifier
+        workspace:
+          type: string
+          description: Workspace path
+        project_name:
+          type: string
+          description: Human-friendly project name
+        status:
+          type: string
+          enum: [active, idle, thinking, executing, error]
+        last_action:
+          type: string
+          description: Description of last completed action
+        last_interaction:
+          type: string
+          format: date-time
+
+    Session:
+      allOf:
+        - $ref: '#/components/schemas/SessionSummary'
+        - type: object
+          properties:
+            current_task:
+              type: string
+              description: Current task being executed
+            next_task:
+              type: string
+              description: Next planned task
+            context:
+              type: object
+              description: Session context data
+              additionalProperties: true
+            created_at:
+              type: string
+              format: date-time
+            thread_id:
+              type: string
+              description: Claude conversation thread ID
+
+    Layout:
+      type: object
+      required: [tiles]
+      properties:
+        version:
+          type: string
+          default: "1.0"
+        tiles:
+          type: array
+          items:
+            type: object
+            required: [id, type, position, size]
+            properties:
+              id:
+                type: string
+              type:
+                type: string
+                enum: [session, stats, logs, workspace]
+              session_id:
+                type: string
+                description: Required if type is 'session'
+              position:
+                type: object
+                required: [x, y]
+                properties:
+                  x:
+                    type: integer
+                    minimum: 0
+                  y:
+                    type: integer
+                    minimum: 0
+              size:
+                type: object
+                required: [width, height]
+                properties:
+                  width:
+                    type: integer
+                    minimum: 1
+                    maximum: 12
+                  height:
+                    type: integer
+                    minimum: 1
+                    maximum: 12
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              additionalProperties: true
+              description: Additional error context
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "INVALID_REQUEST"
+              message: "The workspace path is required"
+              details:
+                field: "workspace"
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "Authentication required"
+              details: {}
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "NOT_FOUND"
+              message: "Session with ID sess_abc123 not found"
+              details:
+                resource_type: "session"
+                resource_id: "sess_abc123"
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Simple API key for session isolation
+
+security:
+  - ApiKey: []
+
+tags:
+  - name: Sessions
+    description: Claude session management
+  - name: Layouts
+    description: Dashboard layout configuration
+  - name: Workspaces
+    description: Workspace/repository management
+  - name: Meta
+    description: Cross-session operations and statistics
