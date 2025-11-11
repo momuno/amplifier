@@ -51,11 +51,16 @@ def cli() -> None:
 @click.option(
     "--sources",
     multiple=True,
-    help="Glob patterns for files to include (e.g., 'src/**/*.py'). Can be specified multiple times. If not provided, files will be auto-discovered.",
+    help="Files to include - supports exact paths (e.g., 'README.md') and glob patterns (e.g., 'src/**/*.py'). Can be specified multiple times. Mix both types freely. If not provided, files will be auto-discovered.",
 )
 @click.option(
     "--template",
     help="Specific template to use (e.g., 'readme', 'api-reference'). If not provided, template will be auto-selected based on --about.",
+)
+@click.option(
+    "--customize-template/--no-customize-template",
+    default=None,
+    help="Whether to customize the template. If not specified: auto-customizes for LLM-selected templates, but uses specified templates directly.",
 )
 @click.option(
     "--dry-run",
@@ -67,6 +72,7 @@ def create(
     output: Path,
     sources: tuple[str, ...],
     template: str | None,
+    customize_template: bool | None,
     dry_run: bool,
 ) -> None:
     """
@@ -91,11 +97,17 @@ def create(
 
     \b
     Examples:
-      # Create with specific sources
+      # Create with specific sources (glob pattern)
       doc-evergreen create \\
           --about "API reference for knowledge synthesis" \\
           --output "docs/API_REFERENCE.md" \\
           --sources "src/knowledge_synthesis/**/*.py"
+
+      # Mix exact files and patterns
+      doc-evergreen create \\
+          --about "Project README" \\
+          --output "README.md" \\
+          --sources "README.md" --sources "pyproject.toml" --sources "src/**/*.py"
 
       # Create with auto-discovery
       doc-evergreen create \\
@@ -119,6 +131,7 @@ def create(
             output=output,
             sources=sources_list,
             template=template,
+            should_customize_template=customize_template,
             dry_run=dry_run,
         )
     except Exception as e:

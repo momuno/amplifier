@@ -248,6 +248,7 @@ def test_add_version_entry(temp_repo):
         backup_path=".doc-evergreen/versions/README.md.2025-01-07T10-00-00.bak",
         template_name="readme",
         template_path=".doc-evergreen/templates/readme.v1.md",
+        sources=["src/**/*.py", "tests/**/*.py"],
         repo_path=temp_repo,
     )
 
@@ -260,6 +261,9 @@ def test_add_version_entry(temp_repo):
     assert "timestamp" in version
     assert version["backup_path"] == ".doc-evergreen/versions/README.md.2025-01-07T10-00-00.bak"
     assert version["template_used"]["name"] == "readme"
+    assert version["sources"] == ["src/**/*.py", "tests/**/*.py"]
+    # Also verify current sources were updated
+    assert config["sources"] == ["src/**/*.py", "tests/**/*.py"]
 
 
 def test_add_version_entry_nonexistent_doc(temp_repo):
@@ -270,6 +274,7 @@ def test_add_version_entry_nonexistent_doc(temp_repo):
             backup_path=".doc-evergreen/versions/NONEXISTENT.md.2025-01-07T10-00-00.bak",
             template_name="test",
             template_path=".doc-evergreen/templates/test.v1.md",
+            sources=["src/**/*.py"],
             repo_path=temp_repo,
         )
 

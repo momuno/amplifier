@@ -204,23 +204,39 @@ def test_gather_files_returns_contents(temp_repo):
 
 
 def test_auto_discover_files_api_keyword():
-    """Test auto-discovery with 'api' keyword."""
+    """Test auto-discovery with tree traversal."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo = Path(tmpdir)
 
-        patterns = auto_discover_files("API reference for user module", repo, use_tree_traversal=False)
+        # Create some test files
+        (repo / "README.md").write_text("readme")
+        src_dir = repo / "src"
+        src_dir.mkdir()
+        (src_dir / "main.py").write_text("code")
 
-        assert "src/**/*.py" in patterns or "api/**/*.py" in patterns
+        files = auto_discover_files("API reference for user module", repo, max_depth=2)
+
+        # Should discover files using tree traversal
+        assert isinstance(files, list)
+        assert any("README.md" in f for f in files)
+        assert any("main.py" in f for f in files)
 
 
 def test_auto_discover_files_cli_keyword():
-    """Test auto-discovery with 'cli' keyword."""
+    """Test auto-discovery finds CLI-related files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo = Path(tmpdir)
 
-        patterns = auto_discover_files("CLI usage guide", repo, use_tree_traversal=False)
+        # Create CLI-related files
+        (repo / "cli.py").write_text("cli code")
+        src_dir = repo / "src"
+        src_dir.mkdir()
+        (src_dir / "commands.py").write_text("commands")
 
-        assert any("cli" in p for p in patterns)
+        files = auto_discover_files("CLI usage guide", repo, max_depth=2)
+
+        assert isinstance(files, list)
+        assert len(files) > 0
 
 
 def test_auto_discover_files_readme():
@@ -228,22 +244,35 @@ def test_auto_discover_files_readme():
     with tempfile.TemporaryDirectory() as tmpdir:
         repo = Path(tmpdir)
 
-        patterns = auto_discover_files("Main project README", repo, use_tree_traversal=False)
+        # Create README and source files
+        (repo / "README.md").write_text("readme")
+        src_dir = repo / "src"
+        src_dir.mkdir()
+        (src_dir / "main.py").write_text("code")
 
-        assert "README.md" in patterns
-        assert "src/**/*.py" in patterns
+        files = auto_discover_files("Main project README", repo, max_depth=2)
+
+        # Should discover files with common extensions
+        assert any("README.md" in f for f in files)
 
 
 def test_auto_discover_files_no_keywords():
-    """Test auto-discovery with no matching keywords."""
+    """Test auto-discovery with tree traversal."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo = Path(tmpdir)
 
-        patterns = auto_discover_files("Some random documentation", repo, use_tree_traversal=False)
+        # Create various files
+        (repo / "README.md").write_text("readme")
+        (repo / "pyproject.toml").write_text("config")
+        src_dir = repo / "src"
+        src_dir.mkdir()
+        (src_dir / "main.py").write_text("code")
 
-        # Should return default patterns
-        assert "README.md" in patterns
-        assert "src/**/*.py" in patterns
+        files = auto_discover_files("Some random documentation", repo, max_depth=2)
+
+        # Should discover files using tree traversal
+        assert isinstance(files, list)
+        assert len(files) > 0
 
 
 def test_auto_discover_files_no_duplicates():
@@ -251,11 +280,16 @@ def test_auto_discover_files_no_duplicates():
     with tempfile.TemporaryDirectory() as tmpdir:
         repo = Path(tmpdir)
 
-        # Topic with multiple matching keywords
-        patterns = auto_discover_files("Python API and CLI reference", repo, use_tree_traversal=False)
+        # Create test files
+        (repo / "README.md").write_text("readme")
+        src_dir = repo / "src"
+        src_dir.mkdir()
+        (src_dir / "main.py").write_text("code")
+
+        files = auto_discover_files("Python API and CLI reference", repo, max_depth=2)
 
         # Should not have duplicates
-        assert len(patterns) == len(set(patterns))
+        assert len(files) == len(set(files))
 
 
 def test_estimate_file_size(temp_repo):

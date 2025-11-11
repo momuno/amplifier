@@ -250,7 +250,7 @@ def test_customize_template_with_existing_doc(mock_call_llm):
     about = "README"
     existing = "# My Project\nExisting content here..."
 
-    result = customize_template(builtin, about, existing)
+    result = customize_template(builtin, about, existing_doc=existing)
 
     assert result == "Customized template"
 

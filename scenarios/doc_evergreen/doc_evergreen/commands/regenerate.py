@@ -9,8 +9,9 @@ from pathlib import Path
 import click
 
 from doc_evergreen.core.discovery import gather_files
-from doc_evergreen.core.generator import generate_document
+from doc_evergreen.core.generator import generate_document_with_mapping
 from doc_evergreen.core.history import add_version_entry, get_doc_config, load_history
+from doc_evergreen.core.source_mapping import load_source_map, map_sources_to_sections, save_source_map
 from doc_evergreen.core.template import load_builtin_template, load_template_from_path
 from doc_evergreen.core.versioning import backup_document
 
@@ -91,29 +92,60 @@ def regenerate_single_document(
         click.echo(f"⚠ Failed to load template: {e}", err=True)
         return
 
-    # Step 3: Generate document
-    click.echo("\n🤖 Step 3: Generating documentation (using LLM)...")
+    # Step 3: Load or create source mapping
+    click.echo("\n🗺️  Step 3: Loading/creating source mapping...")
+
+    source_map_path_str = doc_config.get("source_map_path")
+    source_mapping = None
+    source_map_file = None
+
+    if source_map_path_str:
+        # Try to load existing source map
+        try:
+            source_map_path = repo_path / source_map_path_str
+            source_mapping = load_source_map(source_map_path)
+            click.echo(f"✓ Loaded source map from {source_map_path_str}")
+        except FileNotFoundError:
+            click.echo(f"⚠ Source map not found: {source_map_path_str}")
+            source_mapping = None
+
+    if source_mapping is None:
+        # Create new source mapping
+        click.echo("Creating new source mapping...")
+        try:
+            source_mapping = map_sources_to_sections(template_content, source_files, about)
+            click.echo(f"✓ Mapped {len(source_mapping)} sections")
+
+            # Save the new mapping
+            source_map_file = save_source_map(source_mapping, template_name, repo_path, metadata={"about": about})
+            click.echo(f"✓ Source map saved: {source_map_file.name}")
+        except Exception as e:
+            click.echo(f"⚠ Failed to create source mapping: {e}", err=True)
+            return
+
+    # Step 4: Generate document
+    click.echo("\n🤖 Step 4: Generating documentation (using LLM with source mapping)...")
     click.echo("This may take 30-60 seconds...")
 
     try:
-        generated_doc = generate_document(template_content, source_files, about)
+        generated_doc = generate_document_with_mapping(template_content, source_files, about, source_mapping)
         click.echo("✓ Document generated successfully")
     except Exception as e:
         click.echo(f"⚠ Failed to generate document: {e}", err=True)
         return
 
-    # Step 4: Backup existing document
+    # Step 5: Backup existing document
     if output_path.exists():
-        click.echo("\n💾 Step 4: Backing up existing document...")
+        click.echo("\n💾 Step 5: Backing up existing document...")
         backup_path = backup_document(output_path, repo_path)
         if backup_path:
             click.echo(f"✓ Backed up to: {backup_path}")
     else:
-        click.echo("\n💾 Step 4: No existing document to backup")
+        click.echo("\n💾 Step 5: No existing document to backup")
         backup_path = None
 
-    # Step 5: Save generated document
-    click.echo(f"\n💾 Step 5: Saving document to {output_path}...")
+    # Step 6: Save generated document
+    click.echo(f"\n💾 Step 6: Saving document to {output_path}...")
 
     # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -124,8 +156,20 @@ def regenerate_single_document(
 
     click.echo("✓ Document saved successfully")
 
-    # Step 6: Update history
-    click.echo("\n📋 Step 6: Updating history...")
+    # Step 7: Update history
+    click.echo("\n📋 Step 7: Updating history...")
+
+    # Get relative path for source map if we created a new one
+    source_map_path_for_history = ""
+    if source_map_file:
+        try:
+            relative_source_map = source_map_file.relative_to(repo_path)
+            source_map_path_for_history = str(relative_source_map)
+        except ValueError:
+            source_map_path_for_history = str(source_map_file)
+    elif source_map_path_str:
+        # Use existing source map path
+        source_map_path_for_history = source_map_path_str
 
     if backup_path:
         try:
@@ -138,7 +182,9 @@ def regenerate_single_document(
             backup_path=str(relative_backup),
             template_name=template_name,
             template_path=template_path or "",
+            sources=sources,
             repo_path=repo_path,
+            source_map_path=source_map_path_for_history,
         )
 
     click.echo("✓ History updated")

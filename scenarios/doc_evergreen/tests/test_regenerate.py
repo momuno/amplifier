@@ -12,9 +12,10 @@ from doc_evergreen.commands.regenerate import execute_regenerate, regenerate_sin
 from doc_evergreen.core.history import add_doc_entry, load_history
 
 
-@patch("doc_evergreen.commands.regenerate.generate_document")
+@patch("doc_evergreen.commands.regenerate.map_sources_to_sections")
+@patch("doc_evergreen.commands.regenerate.generate_document_with_mapping")
 @patch("doc_evergreen.commands.regenerate.load_builtin_template")
-def test_regenerate_single_document_success(mock_load_template, mock_generate):
+def test_regenerate_single_document_success(mock_load_template, mock_generate, mock_map_sources):
     """Test regenerating a single document."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo = Path(tmpdir)
@@ -40,6 +41,7 @@ def test_regenerate_single_document_success(mock_load_template, mock_generate):
 
         # Mock LLM calls
         mock_load_template.return_value = "Template content"
+        mock_map_sources.return_value = {"Introduction": ["src/test.py"]}
         mock_generate.return_value = "# New README\n\nGenerated content"
 
         # Load history to get document config
@@ -108,9 +110,10 @@ def test_regenerate_single_document_no_template(mock_echo):
         assert any("No template information" in arg for arg in call_args)
 
 
-@patch("doc_evergreen.commands.regenerate.generate_document")
+@patch("doc_evergreen.commands.regenerate.map_sources_to_sections")
+@patch("doc_evergreen.commands.regenerate.generate_document_with_mapping")
 @patch("doc_evergreen.commands.regenerate.load_builtin_template")
-def test_regenerate_single_document_no_sources(mock_load_template, mock_generate):
+def test_regenerate_single_document_no_sources(mock_load_template, mock_generate, mock_map_sources):
     """Test regeneration handles missing source files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo = Path(tmpdir)
@@ -130,6 +133,8 @@ def test_regenerate_single_document_no_sources(mock_load_template, mock_generate
 
         # Generate should not be called if no sources
         mock_generate.assert_not_called()
+        # Map sources should also not be called
+        mock_map_sources.assert_not_called()
 
 
 @patch("doc_evergreen.commands.regenerate.regenerate_single_document")

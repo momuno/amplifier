@@ -44,6 +44,10 @@ default: ## Show essential commands
 	@echo "Blog Writing:"
 	@echo "  make blog-write      Create a blog post from your ideas"
 	@echo ""
+	@echo "Documentation Generation:"
+	@echo "  make doc-create      Generate documentation with LLM-guided discovery"
+	@echo "  make doc-regenerate  Regenerate existing documentation"
+	@echo ""
 	@echo "Transcription:"
 	@echo "  make transcribe      Transcribe audio/video files or YouTube URLs"
 	@echo "  make transcribe-index Generate index of all transcripts"
@@ -123,6 +127,11 @@ help: ## Show ALL available commands
 	@echo "BLOG WRITING:"
 	@echo "  make blog-write IDEA=<file> WRITINGS=<dir> [INSTRUCTIONS=\"...\"]  Create blog"
 	@echo "  make blog-resume       Resume most recent blog writing session"
+	@echo ""
+	@echo "DOCUMENTATION GENERATION:"
+	@echo "  make doc-create ABOUT=\"...\" OUTPUT=<path> [SOURCES=\"...\"]  Generate new docs"
+	@echo "  make doc-regenerate DOC=<path>  Regenerate specific document"
+	@echo "  make doc-regenerate ALL=true    Regenerate all documents"
 	@echo ""
 	@echo "ARTICLE ILLUSTRATION:"
 	@echo "  make illustrate INPUT=<file> [OUTPUT=<path>] [STYLE=\"...\"] [APIS=\"...\"] [RESUME=true]  Generate illustrations"
@@ -666,3 +675,36 @@ dot-to-mermaid: ## Convert DOT files to Mermaid format. Usage: make dot-to-merma
 	mkdir -p "$$SESSION_DIR"; \
 	echo "Converting DOT files to Mermaid format..."; \
 	uv run python -m ai_working.dot_to_mermaid.cli "$(INPUT)" --session-file "$$SESSION_DIR/session.json"
+
+# Documentation Generation (doc-evergreen)
+doc-create: ## Create new documentation with LLM-guided discovery. Usage: make doc-create ABOUT="description" OUTPUT=path [SOURCES="pattern1 pattern2"]
+	@if [ -z "$(ABOUT)" ]; then \
+		echo "Error: Please provide an ABOUT description. Usage: make doc-create ABOUT=\"description\" OUTPUT=path"; \
+		exit 1; \
+	fi
+	@if [ -z "$(OUTPUT)" ]; then \
+		echo "Error: Please provide an OUTPUT path. Usage: make doc-create ABOUT=\"description\" OUTPUT=path"; \
+		exit 1; \
+	fi
+	@cd $(repo_root) && \
+	if [ -n "$(SOURCES)" ]; then \
+		scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
+			--about "$(ABOUT)" \
+			--output "$(OUTPUT)" \
+			--sources $(SOURCES); \
+	else \
+		scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
+			--about "$(ABOUT)" \
+			--output "$(OUTPUT)"; \
+	fi
+
+doc-regenerate: ## Regenerate existing documentation. Usage: make doc-regenerate DOC=path OR make doc-regenerate ALL=true
+	@cd $(repo_root) && \
+	if [ "$(ALL)" = "true" ]; then \
+		scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate --all; \
+	elif [ -n "$(DOC)" ]; then \
+		scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate "$(DOC)"; \
+	else \
+		echo "Error: Please provide DOC=path or ALL=true. Usage: make doc-regenerate DOC=path"; \
+		exit 1; \
+	fi

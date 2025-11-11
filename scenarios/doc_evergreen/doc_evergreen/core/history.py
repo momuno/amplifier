@@ -51,6 +51,7 @@ def ensure_doc_evergreen_dir(repo_path: Path) -> None:
     # Also create subdirectories
     (doc_dir / "templates").mkdir(exist_ok=True)
     (doc_dir / "versions").mkdir(exist_ok=True)
+    (doc_dir / "source-maps").mkdir(exist_ok=True)
 
 
 def load_history(repo_path: Path) -> dict[str, Any]:
@@ -140,6 +141,7 @@ def add_doc_entry(
     template_path: str,
     sources: list[str],
     repo_path: Path,
+    source_map_path: str = "",
 ) -> None:
     """
     Add or update document configuration.
@@ -151,6 +153,7 @@ def add_doc_entry(
         template_path: Path to the template file
         sources: List of source file glob patterns
         repo_path: Path to repository root
+        source_map_path: Path to source mapping file (relative to repo root)
     """
     history = load_history(repo_path)
 
@@ -166,9 +169,11 @@ def add_doc_entry(
         }
         history["docs"][doc_path]["sources"] = sources
         history["docs"][doc_path]["about"] = about
+        if source_map_path:
+            history["docs"][doc_path]["source_map_path"] = source_map_path
     else:
         # New entry
-        history["docs"][doc_path] = {
+        entry = {
             "created": now,
             "last_generated": now,
             "path": doc_path,
@@ -180,6 +185,9 @@ def add_doc_entry(
             "sources": sources,
             "about": about,
         }
+        if source_map_path:
+            entry["source_map_path"] = source_map_path
+        history["docs"][doc_path] = entry
 
     save_history(history, repo_path)
 
@@ -189,7 +197,9 @@ def add_version_entry(
     backup_path: str,
     template_name: str,
     template_path: str,
+    sources: list[str],
     repo_path: Path,
+    source_map_path: str = "",
 ) -> None:
     """
     Add version entry to document history.
@@ -199,7 +209,9 @@ def add_version_entry(
         backup_path: Path to backup file
         template_name: Name of template used for this version
         template_path: Path to template file
+        sources: List of source file patterns or paths used for this version
         repo_path: Path to repository root
+        source_map_path: Path to source mapping file (relative to repo root)
     """
     history = load_history(repo_path)
 
@@ -215,10 +227,17 @@ def add_version_entry(
             "name": template_name,
             "path": template_path,
         },
+        "sources": sources,
     }
+    if source_map_path:
+        version_entry["source_map_path"] = source_map_path
 
     history["docs"][doc_path]["previous_versions"].append(version_entry)
     history["docs"][doc_path]["last_generated"] = now
+    # Also update current sources to match this version
+    history["docs"][doc_path]["sources"] = sources
+    if source_map_path:
+        history["docs"][doc_path]["source_map_path"] = source_map_path
 
     save_history(history, repo_path)
 

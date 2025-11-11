@@ -10,28 +10,38 @@ from pathlib import Path
 import pathspec
 
 
-def find_files(patterns: list[str], base_path: Path) -> list[Path]:
+def find_files(patterns: list[str], base_path: Path, max_depth: int = 100) -> list[Path]:
     """
-    Find files matching glob patterns.
+    Find files matching glob patterns or exact file paths.
+
+    Supports both:
+    - Exact file paths: "README.md", "src/main.py"
+    - Glob patterns: "src/**/*.py", "*.md"
+    - Mix of both: ["README.md", "src/**/*.py", "docs/guide.md"]
 
     Args:
-        patterns: List of glob patterns (e.g., ["src/**/*.py", "*.md"])
+        patterns: List of glob patterns or exact file paths
         base_path: Base directory to search from
+        max_depth: Maximum directory depth to traverse (not used, for compatibility)
 
     Returns:
         List of matching file paths (absolute)
     """
-    all_files: set[Path] = set()
+    matched_files: set[Path] = set()
 
     for pattern in patterns:
-        # Use glob with recursive patterns
-        matches = base_path.glob(pattern)
-        for match in matches:
-            # Only include files, not directories
-            if match.is_file():
-                all_files.add(match.resolve())
+        # First check if it's an exact file path
+        exact_path = base_path / pattern
+        if exact_path.is_file():
+            matched_files.add(exact_path)
+            continue
 
-    return sorted(all_files)
+        # Otherwise treat as glob pattern
+        for file_path in base_path.glob(pattern):
+            if file_path.is_file():
+                matched_files.add(file_path)
+
+    return sorted(matched_files)
 
 
 def load_gitignore(repo_path: Path) -> pathspec.PathSpec | None:
@@ -125,10 +135,15 @@ def read_file(file_path: Path) -> str:
 
 def gather_files(patterns: list[str], repo_path: Path, respect_gitignore: bool = True) -> dict[str, str]:
     """
-    Gather files matching patterns and read their contents.
+    Gather files matching patterns/paths and read their contents.
+
+    Supports both exact file paths and glob patterns:
+    - Exact: ["README.md", "src/main.py"]
+    - Patterns: ["src/**/*.py", "*.md"]
+    - Mixed: ["README.md", "src/**/*.py", "docs/guide.md"]
 
     Args:
-        patterns: List of glob patterns
+        patterns: List of glob patterns or exact file paths
         repo_path: Path to repository root
         respect_gitignore: If True, skip files in .gitignore
 
@@ -169,25 +184,32 @@ def gather_files(patterns: list[str], repo_path: Path, respect_gitignore: bool =
 def traverse_repo_tree(
     repo_path: Path,
     max_depth: int = 2,
+    patterns: list[str] | None = None,
     include_extensions: set[str] | None = None,
     exclude_dirs: set[str] | None = None,
 ) -> list[Path]:
     """
     Traverse repository tree and collect relevant files.
 
+    Can filter by either glob patterns OR file extensions:
+    - If patterns provided: matches files against those patterns during traversal
+    - If patterns not provided: uses extension-based filtering (default behavior)
+
     Args:
         repo_path: Path to repository root
         max_depth: Maximum directory depth to traverse (0 = root only, 1 = root + immediate subdirs, etc.)
+        patterns: List of glob patterns to match files (e.g., ['src/**/*.py', '*.md'])
+                 If provided, takes precedence over include_extensions
         include_extensions: Set of file extensions to include (e.g., {'.py', '.md', '.toml'})
-                          If None, includes common documentation-relevant extensions
+                          Only used if patterns is None. If None, includes common documentation-relevant extensions
         exclude_dirs: Set of directory names to exclude (e.g., {'.git', 'node_modules'})
                      If None, uses common exclusions
 
     Returns:
         List of file paths found
     """
-    if include_extensions is None:
-        # Common extensions for documentation purposes
+    if include_extensions is None and patterns is None:
+        # Common extensions for documentation purposes (only used if no patterns)
         include_extensions = {
             ".py",
             ".md",
@@ -226,6 +248,28 @@ def traverse_repo_tree(
         """Check if directory should be excluded."""
         return dir_path.name in exclude_dirs
 
+    def matches_patterns(file_path: Path) -> bool:
+        """Check if file matches any of the provided patterns."""
+        if patterns is None:
+            return False
+
+        # Get relative path from repo root for pattern matching
+        try:
+            rel_path = file_path.relative_to(repo_path)
+            rel_str = str(rel_path)
+
+            for pattern in patterns:
+                # Check if it's an exact match first
+                if rel_str == pattern:
+                    return True
+                # Use Path.match() which properly handles ** glob patterns
+                if rel_path.match(pattern):
+                    return True
+        except ValueError:
+            pass
+
+        return False
+
     def walk_tree(current_path: Path, current_depth: int) -> None:
         """Recursively walk tree up to max_depth."""
         if current_depth > max_depth:
@@ -240,8 +284,11 @@ def traverse_repo_tree(
                     # Recurse into subdirectory
                     walk_tree(item, current_depth + 1)
                 elif item.is_file():
-                    # Include file if extension matches
-                    if item.suffix in include_extensions:
+                    # Filter by patterns if provided, otherwise by extension
+                    if patterns is not None:
+                        if matches_patterns(item):
+                            files.append(item)
+                    elif include_extensions and item.suffix in include_extensions:
                         files.append(item)
         except PermissionError:
             # Skip directories we can't read
@@ -408,7 +455,11 @@ def llm_guided_discovery(about: str, repo_path: Path) -> list[str]:
     # Import here to avoid circular dependency
     import click
 
+    from doc_evergreen.core.doc_logger import get_logger
     from doc_evergreen.core.generator import call_llm
+
+    # Get logger if available
+    logger = get_logger()
 
     # Data structures
     relevant_files: list[str] = []
@@ -417,6 +468,11 @@ def llm_guided_discovery(about: str, repo_path: Path) -> list[str]:
 
     click.echo("\n🔍 Starting LLM-guided breadth-first discovery...")
     click.echo("=" * 60)
+
+    if logger:
+        logger.logger.info("Starting LLM-guided file discovery")
+        logger.logger.info(f"Documentation goal: {about}")
+        logger.logger.info(f"Repository path: {repo_path}")
 
     # Load gitignore
     gitignore = load_gitignore(repo_path)
@@ -474,6 +530,15 @@ def llm_guided_discovery(about: str, repo_path: Path) -> list[str]:
             try:
                 rel_path = f.relative_to(repo_path)
                 content_peek = peek_file(f, max_chars=500)
+
+                # Log file peek
+                if logger:
+                    logger.log_file_read(
+                        file_path=str(rel_path),
+                        reason=f"Peeking file for LLM discovery decision at depth {depth}",
+                        content_preview=content_peek,
+                    )
+
                 file_info.append(
                     {
                         "path": str(rel_path),
@@ -536,9 +601,33 @@ If no directories should be explored, write "- NONE" under EXPLORE_DIRECTORIES.
         # Ask LLM
         try:
             response = call_llm(prompt, max_tokens=2000, temperature=0.3)
+
+            # Log the LLM call
+            if logger:
+                logger.log_llm_call(
+                    operation=f"Discovery decision for {current_rel} at depth {depth}",
+                    prompt=prompt,
+                    response=response,
+                    metadata={
+                        "directory": current_rel,
+                        "depth": depth,
+                        "files_count": len(files),
+                        "subdirs_count": len(subdirs),
+                    },
+                )
+
         except Exception as e:
             # If LLM fails, fall back to including everything
             click.echo(f"  ⚠ LLM call failed: {e}, including all files")
+
+            # Log the error
+            if logger:
+                logger.log_error(
+                    error_type="LLM Discovery Call Failed",
+                    error_message=str(e),
+                    context={"directory": current_rel, "depth": depth, "fallback": "including all files"},
+                )
+
             relevant_files.extend([str(f.relative_to(repo_path)) for f in files])
             dirs_to_explore.extend([(d, depth + 1) for d in subdirs])
             continue
@@ -546,6 +635,23 @@ If no directories should be explored, write "- NONE" under EXPLORE_DIRECTORIES.
         # Parse LLM response
         selected_files = parse_relevant_files(response)
         selected_dirs = parse_explore_directories(response)
+
+        # Extract reasoning if present
+        reason = ""
+        if "REASON:" in response:
+            reason = response.split("REASON:")[-1].strip()
+
+        # Log the discovery step with LLM's decisions
+        if logger:
+            logger.log_discovery_step(
+                depth=depth,
+                directory=current_rel,
+                files_found=len(files),
+                dirs_found=len(subdirs),
+                selected_files=selected_files,
+                selected_dirs=selected_dirs,
+                reasoning=reason,
+            )
 
         # Show LLM's decision
         click.echo(f"  ✓ LLM selected {len(selected_files)} files")
@@ -558,9 +664,8 @@ If no directories should be explored, write "- NONE" under EXPLORE_DIRECTORIES.
             for d in selected_dirs:
                 click.echo(f"    → {d}")
 
-        # Extract reasoning if present
-        if "REASON:" in response:
-            reason = response.split("REASON:")[-1].strip()
+        # Show reasoning
+        if reason:
             click.echo(f"  💭 Reason: {reason}")
 
         # Add selected files to collection
@@ -582,97 +687,48 @@ If no directories should be explored, write "- NONE" under EXPLORE_DIRECTORIES.
 def auto_discover_files(
     topic: str,
     repo_path: Path,
-    use_tree_traversal: bool = True,
     max_depth: int = 2,
     use_llm_guided: bool = False,
 ) -> list[str]:
     """
-    Auto-discover relevant files based on topic.
+    Auto-discover relevant files using either tree traversal or LLM-guided discovery.
 
     Args:
         topic: Description of what the documentation is about
         repo_path: Path to repository root
-        use_tree_traversal: If True, uses tree traversal; if False, uses glob patterns
         max_depth: Maximum directory depth for tree traversal (ignored if use_llm_guided=True)
         use_llm_guided: If True, uses LLM-guided breadth-first discovery (most intelligent)
 
     Returns:
-        List of glob patterns to include (if use_tree_traversal=False)
-        or list of relative file paths (if use_tree_traversal=True or use_llm_guided=True)
+        List of relative file paths
     """
     if use_llm_guided:
         # Use LLM-guided intelligent discovery (no depth limit, adaptive pruning)
         return llm_guided_discovery(topic, repo_path)
 
-    if use_tree_traversal:
-        # Perform tree traversal
-        discovered_files = traverse_repo_tree(repo_path, max_depth=max_depth)
+    # Use tree traversal with default extensions
+    discovered_files = traverse_repo_tree(repo_path, max_depth=max_depth)
 
-        # Load gitignore to filter
-        gitignore = load_gitignore(repo_path)
+    # Load gitignore to filter
+    gitignore = load_gitignore(repo_path)
 
-        # Filter files based on gitignore
-        filtered_files: list[Path] = []
-        for file_path in discovered_files:
-            if not should_ignore(file_path, repo_path, gitignore):
-                filtered_files.append(file_path)
+    # Filter files based on gitignore
+    filtered_files: list[Path] = []
+    for file_path in discovered_files:
+        if not should_ignore(file_path, repo_path, gitignore):
+            filtered_files.append(file_path)
 
-        # Convert to relative path strings
-        relative_paths: list[str] = []
-        for file_path in filtered_files:
-            try:
-                rel_path = file_path.relative_to(repo_path)
-                relative_paths.append(str(rel_path))
-            except ValueError:
-                # Skip files outside repo
-                continue
+    # Convert to relative path strings
+    relative_paths: list[str] = []
+    for file_path in filtered_files:
+        try:
+            rel_path = file_path.relative_to(repo_path)
+            relative_paths.append(str(rel_path))
+        except ValueError:
+            # Skip files outside repo
+            continue
 
-        return relative_paths
-
-    else:
-        # Use original glob-pattern based approach
-        patterns: list[str] = []
-
-        # Normalize topic for matching
-        topic_lower = topic.lower()
-
-        # Common keywords and their associated patterns
-        keywords = {
-            "api": ["src/**/*.py", "lib/**/*.py", "api/**/*.py"],
-            "python": ["src/**/*.py", "*.py", "pyproject.toml", "setup.py"],
-            "cli": ["src/cli/**/*.py", "src/**/cli.py", "src/commands/**/*.py"],
-            "readme": ["README.md", "src/**/*.py", "pyproject.toml", "setup.py"],
-            "contributing": ["CONTRIBUTING.md", "README.md", ".github/**/*.md", "docs/dev*.md"],
-            "architecture": ["docs/**/*.md", "src/**/*.py", "README.md"],
-            "user guide": ["README.md", "docs/**/*.md", "examples/**/*"],
-            "tutorial": ["README.md", "docs/**/*.md", "examples/**/*", "tutorials/**/*"],
-            "reference": ["src/**/*.py", "lib/**/*.py"],
-            "developer": ["README.md", "CONTRIBUTING.md", "docs/**/*.md", "src/**/*.py"],
-        }
-
-        # Match keywords in topic
-        for keyword, keyword_patterns in keywords.items():
-            if keyword in topic_lower:
-                patterns.extend(keyword_patterns)
-
-        # If no matches, use general patterns
-        if not patterns:
-            patterns = [
-                "README.md",
-                "src/**/*.py",
-                "lib/**/*.py",
-                "pyproject.toml",
-            ]
-
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_patterns = []
-        for pattern in patterns:
-            if pattern not in seen:
-                seen.add(pattern)
-                unique_patterns.append(pattern)
-
-        return unique_patterns
+    return relative_paths
 
 
 def estimate_file_size(patterns: list[str], repo_path: Path) -> int:

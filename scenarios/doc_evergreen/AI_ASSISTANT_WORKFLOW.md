@@ -4,11 +4,42 @@
 
 This guide explains how to help users use doc-evergreen effectively through conversational interaction.
 
+## ⚠️ START HERE - Critical Prerequisites
+
+**BEFORE using this tool:**
+
+1. **Working Directory**: You MUST be in the repository root directory
+   - The tool automatically detects git root and creates `.doc-evergreen/` there
+   - If running from a subdirectory, it will warn and ask for confirmation
+   - ✅ Run from: `/path/to/repo` (git root)
+   - ❌ Don't run from: `/path/to/repo/scenarios/doc_evergreen`
+
+2. **Run from Repository Root**: Must execute from the repository root directory
+   ```bash
+   # Ensure you're in repository root
+   cd /path/to/repo
+
+   # Then run the tool
+   scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
+       --about "..." \
+       --output path
+   ```
+
+3. **API Key**: Anthropic API key must be configured
+   - File: `.claude/api_key.txt` (in repo root or parent directories)
+   - Env var: `ANTHROPIC_API_KEY`
+
+4. **LLM-Guided Discovery** (Default):
+   - The tool uses intelligent breadth-first search to find relevant files
+   - LLM examines each directory level and decides what to explore
+   - No need to specify `--sources` patterns manually (unless you want to)
+   - Discovery process shows full logging of LLM's decisions
+
 ## Tool Overview
 
 doc-evergreen is a CLI tool that generates documentation from source code using LLM intelligence. It has two main commands:
 
-1. **create** - Generate new documentation
+1. **create** - Generate new documentation (with LLM-guided file discovery)
 2. **regenerate** - Update existing documentation from saved configuration
 
 ## When to Use This Tool
@@ -47,29 +78,43 @@ Suggest doc-evergreen when users:
 
 ### Step 2: Determine Source Files
 
-**Offer two options:**
+**Default: LLM-Guided Discovery (Recommended)**
 
-**Option A: Auto-discovery (Recommended for first-time users)**
 ```
-"I can auto-discover the relevant source files based on your description.
-This usually works well for common documentation types."
+"The tool will use LLM-guided discovery to intelligently find relevant files.
+It explores the repository breadth-first, and the LLM decides at each level:
+- Which files are relevant to your documentation goal
+- Which subdirectories to explore deeper
+
+This usually works better than manual patterns because it adapts to your project structure."
 ```
 
-**Option B: Explicit patterns (For specific needs)**
+**Alternative: Explicit sources (For specific needs only)**
 ```
-"What files should I include? You can specify glob patterns like:
+"If you need precise control, you can specify:
+
+Exact files:
+- 'README.md' - Specific file
+- 'pyproject.toml' - Config file
+- 'docs/architecture.md' - Specific document
+
+Glob patterns:
 - 'src/**/*.py' - All Python files in src/
 - '*.md' - All markdown files in root
 - 'api/**/*.ts' - All TypeScript files in api/
 
-You can specify multiple patterns."
+Mix both:
+- 'README.md' + 'pyproject.toml' + 'src/**/*.py' - Combine specific files with patterns
+
+But LLM-guided discovery is usually smarter and finds files you might miss."
 ```
 
-**Auto-discovery keywords to mention:**
-- "readme" → Will include README.md, main source files, pyproject.toml
-- "api" → Will include src/**/*.py, api/**/*.py
-- "cli" → Will include src/cli/**/*.py, src/commands/**/*.py
-- "guide" → Will include docs/**/*.md, examples files
+**How LLM-guided discovery works:**
+1. Starts at repository root
+2. LLM sees file names + content previews (first 500 chars)
+3. LLM selects relevant files and directories to explore
+4. Recurses into selected directories with adaptive depth
+5. Shows full reasoning for transparency
 
 ### Step 3: Determine Output Path
 
@@ -106,31 +151,30 @@ Available templates:
 Do you want to explicitly specify a template?"
 ```
 
-### Step 5: Preview or Generate
+### Step 5: Execute Generation
 
-**Always offer dry-run first:**
+**Run from repository root:**
 
-```
-"Would you like to:
-1. Preview what would be generated (dry-run) - Recommended first time
-2. Generate immediately"
-```
-
-**For dry-run:**
 ```bash
-uv run python -m doc_evergreen.cli create \
-    --about "Main project README" \
-    --output README.md \
-    --sources "src/**/*.py" "pyproject.toml" \
-    --dry-run
-```
+# Must be run from repository root
+cd /path/to/repo
 
-**For actual generation:**
-```bash
-uv run python -m doc_evergreen.cli create \
+# With LLM-guided discovery (default - RECOMMENDED)
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
+    --about "Main project README covering installation, usage, and features" \
+    --output README.md
+
+# With explicit sources (if needed)
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
     --about "Main project README" \
     --output README.md \
     --sources "src/**/*.py" "pyproject.toml"
+
+# Dry-run (preview only)
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
+    --about "Main project README" \
+    --output README.md \
+    --dry-run
 ```
 
 ### Step 6: Handle Results
@@ -173,19 +217,17 @@ Or say 'all' to regenerate everything."
 
 ### Step 2: Regenerate Single or All
 
-**For single document:**
-```bash
-uv run python -m doc_evergreen.cli regenerate README.md
-```
+**Run from repository root:**
 
-**For all documents:**
 ```bash
-uv run python -m doc_evergreen.cli regenerate --all
-```
+# Must be run from repository root
+cd /path/to/repo
 
-**Always offer dry-run:**
-```
-"Would you like to preview first? (--dry-run)"
+# Single document
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate README.md
+
+# All documents
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate --all
 ```
 
 ### Step 3: Explain What Will Happen
@@ -250,23 +292,27 @@ What should the README cover? Give me 1-2 sentences about your project."
 
 **Assistant:**
 ```
-"Great! I'll use auto-discovery to find relevant files (Python source, pyproject.toml, etc).
+"Great! I'll use LLM-guided discovery to intelligently find relevant files.
 
-Let me preview what would be generated first:
+The LLM will explore your repository and select files that are relevant to
+'Python CLI tool for analyzing code complexity'.
+
+Let me generate the README:
 ```
 
 ```bash
-uv run python -m doc_evergreen.cli create \
-    --about "Python CLI tool for analyzing code complexity" \
-    --output README.md \
-    --dry-run
+make doc-create \
+    ABOUT="Python CLI tool for analyzing code complexity" \
+    OUTPUT=README.md
 ```
 
 ```
-"This shows what files would be included. Look good?
+"This will take 30-60 seconds as the LLM:
+1. Discovers relevant source files (shows full reasoning)
+2. Selects appropriate template
+3. Generates the documentation
 
-If yes, I'll run without --dry-run to actually generate it.
-This takes about 30-60 seconds."
+Watch the output - it shows exactly which files the LLM selected and why."
 ```
 
 ### Example 2: Regenerating After Code Changes
@@ -294,7 +340,7 @@ I'll regenerate it now. Your current version will be backed up to:
 ```
 
 ```bash
-uv run python -m doc_evergreen.cli regenerate docs/API.md
+make doc-regenerate DOC=docs/API.md
 ```
 
 ### Example 3: User Wants Multiple Documents
@@ -317,9 +363,9 @@ What should it cover?"
 ```
 
 ```bash
-uv run python -m doc_evergreen.cli create \
-    --about "Project overview, installation, and basic usage" \
-    --output README.md
+make doc-create \
+    ABOUT="Project overview, installation, and basic usage" \
+    OUTPUT=README.md
 ```
 
 ```
@@ -332,31 +378,29 @@ What should the API documentation cover?"
 **User:** "All REST endpoints and authentication"
 
 ```bash
-uv run python -m doc_evergreen.cli create \
-    --about "REST API endpoints and authentication" \
-    --output docs/API.md \
-    --sources "src/api/**/*.py"
+make doc-create \
+    ABOUT="REST API endpoints and authentication" \
+    OUTPUT=docs/API.md \
+    SOURCES="src/api/**/*.py"
 ```
 
 ```
 "✓ docs/API.md created
 
-Finally, the contributing guide:
-This will include CONTRIBUTING.md and .github files. Sound good?"
+Finally, the contributing guide:"
 ```
 
 ```bash
-uv run python -m doc_evergreen.cli create \
-    --about "Contributing guidelines for developers" \
-    --output CONTRIBUTING.md \
-    --template developer-guide
+make doc-create \
+    ABOUT="Contributing guidelines for developers" \
+    OUTPUT=CONTRIBUTING.md
 ```
 
 ```
 "✓ All three documents created!
 
 You can regenerate all at once later with:
-  doc-evergreen regenerate --all"
+  make doc-regenerate ALL=true"
 ```
 
 ## Troubleshooting Guide for Assistants
@@ -431,53 +475,69 @@ The tool shows progress messages:
 
 ## Command Construction Rules
 
-### For create command:
+### Recommended: Use Makefile Commands
 
-**Minimal (auto-discovery):**
+**For create command:**
+
 ```bash
-doc-evergreen create --about "DESCRIPTION" --output PATH
+# Minimal (LLM-guided discovery - recommended)
+make doc-create ABOUT="DESCRIPTION" OUTPUT=PATH
+
+# With exact files
+make doc-create ABOUT="DESCRIPTION" OUTPUT=PATH SOURCES="README.md pyproject.toml"
+
+# With glob patterns
+make doc-create ABOUT="DESCRIPTION" OUTPUT=PATH SOURCES="src/**/*.py tests/**/*.py"
+
+# Mix exact files and patterns
+make doc-create ABOUT="DESCRIPTION" OUTPUT=PATH SOURCES="README.md pyproject.toml src/**/*.py"
 ```
 
-**With explicit sources:**
+**For regenerate command:**
+
 ```bash
-doc-evergreen create \
+# Single document
+make doc-regenerate DOC=PATH
+
+# All documents
+make doc-regenerate ALL=true
+```
+
+### Alternative: Direct CLI Commands
+
+**Prerequisites:**
+- Must run from repository root: `cd /path/to/repo`
+- Tool path: `scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli`
+
+**For create command:**
+
+```bash
+# Minimal (LLM-guided discovery)
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
+    --about "DESCRIPTION" \
+    --output PATH
+
+# With explicit sources
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
     --about "DESCRIPTION" \
     --output PATH \
     --sources "pattern1" "pattern2"
-```
 
-**With template:**
-```bash
-doc-evergreen create \
-    --about "DESCRIPTION" \
-    --output PATH \
-    --template readme
-```
-
-**Dry run:**
-```bash
-doc-evergreen create \
+# Dry run (preview only)
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
     --about "DESCRIPTION" \
     --output PATH \
     --dry-run
 ```
 
-### For regenerate command:
+**For regenerate command:**
 
-**Single document:**
 ```bash
-doc-evergreen regenerate PATH
-```
+# Single document
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate PATH
 
-**All documents:**
-```bash
-doc-evergreen regenerate --all
-```
-
-**Dry run:**
-```bash
-doc-evergreen regenerate PATH --dry-run
-doc-evergreen regenerate --all --dry-run
+# All documents
+scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate --all
 ```
 
 ## Best Practices for Assistants

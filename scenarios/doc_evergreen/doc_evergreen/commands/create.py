@@ -9,8 +9,14 @@ from pathlib import Path
 import click
 
 from doc_evergreen.core.discovery import auto_discover_files, format_file_size, gather_files
-from doc_evergreen.core.generator import customize_template, generate_document
+from doc_evergreen.core.doc_logger import close_logger, init_logger
+from doc_evergreen.core.generator import (
+    customize_template,
+    decide_if_customization_needed,
+    generate_document_with_mapping,
+)
 from doc_evergreen.core.history import add_doc_entry, add_version_entry, load_history
+from doc_evergreen.core.source_mapping import map_sources_to_sections, save_source_map
 from doc_evergreen.core.template import (
     load_builtin_template,
     save_template,
@@ -18,11 +24,38 @@ from doc_evergreen.core.template import (
 from doc_evergreen.core.versioning import backup_document
 
 
+def find_git_root(start_path: Path) -> Path | None:
+    """
+    Find the git repository root by searching for .git directory.
+
+    Args:
+        start_path: Directory to start searching from
+
+    Returns:
+        Path to git root, or None if not in a git repo
+    """
+    current = start_path.resolve()
+
+    # Search up to 10 levels
+    for _ in range(10):
+        if (current / ".git").exists():
+            return current
+
+        parent = current.parent
+        if parent == current:
+            # Reached filesystem root
+            break
+        current = parent
+
+    return None
+
+
 def execute_create(
     about: str,
     output: Path,
     sources: list[str] | None,
     template: str | None,
+    should_customize_template: bool | None,
     dry_run: bool,
 ) -> None:
     """
@@ -33,6 +66,7 @@ def execute_create(
         output: Path where the document should be saved
         sources: List of glob patterns for source files, or None for auto-discovery
         template: Specific template to use, or None for auto-selection
+        should_customize_template: Whether to customize template (None=auto-decide based on whether template was specified)
         dry_run: If True, show what would be done without writing files
     """
     # Validate parameters
@@ -50,8 +84,44 @@ def execute_create(
             err=True,
         )
 
-    # Get repository root (current directory)
-    repo_path = Path.cwd()
+    # Get repository root
+    cwd = Path.cwd()
+    git_root = find_git_root(cwd)
+
+    if git_root is None:
+        click.echo("⚠️  Warning: Not in a git repository.", err=True)
+        click.echo("   Using current directory as repo root.", err=True)
+        click.echo(f"   Directory: {cwd}", err=True)
+        click.echo("", err=True)
+        repo_path = cwd
+    else:
+        repo_path = git_root
+
+        # Warn if running from subdirectory
+        if cwd != git_root:
+            click.echo("⚠️  Warning: Running from subdirectory of git repo.", err=True)
+            click.echo(f"   Current: {cwd}", err=True)
+            click.echo(f"   Git root: {git_root}", err=True)
+            click.echo("   Using git root as repo path.", err=True)
+            click.echo("", err=True)
+            click.echo("💡 Tip: For best results, run from repository root:", err=True)
+            click.echo(f"   cd {git_root}", err=True)
+            click.echo('   make doc-create ABOUT="..." OUTPUT=...', err=True)
+            click.echo("", err=True)
+
+            # Ask for confirmation
+            if not dry_run:
+                click.confirm("Continue with git root as repo path?", abort=True, err=True)
+
+    # Initialize logger
+    log_dir = repo_path / ".doc-evergreen" / "logs"
+    logger = init_logger(log_dir)
+    logger.logger.info("=" * 80)
+    logger.logger.info("CREATE COMMAND STARTED")
+    logger.logger.info(f"About: {about}")
+    logger.logger.info(f"Output: {output}")
+    logger.logger.info(f"Repository path: {repo_path}")
+    logger.logger.info("=" * 80)
 
     # Display header
     click.echo("=" * 60)
@@ -107,10 +177,11 @@ def execute_create(
     if dry_run:
         click.echo("\n[DRY RUN] Would proceed with:")
         click.echo("  2. Template selection/customization")
-        click.echo("  3. Document generation")
-        click.echo("  4. Backup existing document (if exists)")
-        click.echo("  5. Save to output path")
-        click.echo("  6. Update history.yaml")
+        click.echo("  3. Source-to-section mapping")
+        click.echo("  4. Document generation")
+        click.echo("  5. Backup existing document (if exists)")
+        click.echo("  6. Save to output path")
+        click.echo("  7. Update history.yaml")
         return
 
     # Step 2: Template selection and customization
@@ -131,48 +202,98 @@ def execute_create(
     # Load built-in template
     builtin_template = load_builtin_template(template_name)
 
-    # Customize template for this project
-    click.echo("Customizing template for your project (using LLM)...")
-    try:
-        # Never use existing output to influence new generation (circular reference problem)
-        customized_template = customize_template(builtin_template, about, existing_doc=None)
+    # Determine if template should be customized
+    # Three scenarios:
+    # 1. Explicit --customize-template: Always customize
+    # 2. Explicit --no-customize-template: Never customize
+    # 3. No flag (auto-decide): Ask LLM to evaluate if customization would be beneficial
 
-        # Save customized template
-        template_path = save_template(
-            customized_template,
-            template_name,
-            repo_path,
-            metadata={"derived_from": template_name, "customizations": ["Customized for project context"]},
-        )
-        click.echo(f"Saved customized template: {template_path}")
+    if should_customize_template is None:
+        # Auto-decide: Always ask LLM to evaluate customization need
+        # (regardless of whether template was user-specified or LLM-selected)
+        click.echo("Evaluating if template customization would be beneficial...")
+        try:
+            do_customize, reason = decide_if_customization_needed(builtin_template, about, source_files, template_name)
+            if do_customize:
+                click.echo(f"✓ Customization recommended: {reason}")
+            else:
+                click.echo(f"✓ Template sufficient as-is: {reason}")
+        except Exception as e:
+            click.echo(f"⚠ Could not decide on customization: {e}", err=True)
+            click.echo("Defaulting to: use template directly")
+            do_customize = False
+    else:
+        # Explicit flag provided - honor user's decision
+        do_customize = should_customize_template
+        if do_customize:
+            click.echo(f"Customizing template '{template_name}' (explicitly requested)")
+        else:
+            click.echo(f"Using template '{template_name}' directly (explicitly requested)")
 
-    except Exception as e:
-        click.echo(f"⚠ Template customization failed: {e}", err=True)
-        click.echo("Using built-in template without customization")
+    # Perform customization if needed
+    if do_customize:
+        try:
+            # Pass source files to customization for context
+            customized_template = customize_template(builtin_template, about, sources=source_files, existing_doc=None)
+
+            # Save customized template
+            template_path = save_template(
+                customized_template,
+                template_name,
+                repo_path,
+                metadata={"derived_from": template_name, "customizations": ["Customized for project context"]},
+            )
+            click.echo(f"Saved customized template: {template_path}")
+
+        except Exception as e:
+            click.echo(f"⚠ Template customization failed: {e}", err=True)
+            click.echo("Using built-in template without customization")
+            customized_template = builtin_template
+            template_path = None
+    else:
+        # Use template directly without customization
         customized_template = builtin_template
         template_path = None
 
-    # Step 3: Generate documentation
-    click.echo("\n🤖 Step 3: Generating documentation (using LLM)...")
+    # Step 3: Map sources to sections
+    click.echo("\n🗺️  Step 3: Mapping sources to template sections...")
+
+    try:
+        source_mapping = map_sources_to_sections(customized_template, source_files, about)
+        click.echo(f"✓ Mapped {len(source_mapping)} sections")
+
+        # Show mapping summary
+        for section, sources in source_mapping.items():
+            if sources:
+                click.echo(f"  • {section}: {len(sources)} source(s)")
+
+        # Save source map
+        source_map_file = save_source_map(source_mapping, template_name, repo_path, metadata={"about": about})
+        click.echo(f"✓ Source map saved: {source_map_file.name}")
+    except Exception as e:
+        raise RuntimeError(f"Source mapping failed: {e}")
+
+    # Step 4: Generate documentation
+    click.echo("\n🤖 Step 4: Generating documentation (using LLM with source mapping)...")
     click.echo("This may take 30-60 seconds...")
 
     try:
-        generated_doc = generate_document(customized_template, source_files, about)
+        generated_doc = generate_document_with_mapping(customized_template, source_files, about, source_mapping)
         click.echo("✓ Document generated successfully")
     except Exception as e:
         raise RuntimeError(f"Document generation failed: {e}")
 
-    # Step 4: Backup existing document
+    # Step 5: Backup existing document
     if output.exists():
-        click.echo("\n💾 Step 4: Backing up existing document...")
+        click.echo("\n💾 Step 5: Backing up existing document...")
         backup_path = backup_document(output, repo_path)
         if backup_path:
             click.echo(f"✓ Backed up to: {backup_path}")
     else:
-        click.echo("\n💾 Step 4: No existing document to backup")
+        click.echo("\n💾 Step 5: No existing document to backup")
 
-    # Step 5: Save generated document
-    click.echo(f"\n💾 Step 5: Saving document to {output}...")
+    # Step 6: Save generated document
+    click.echo(f"\n💾 Step 6: Saving document to {output}...")
 
     # Ensure output directory exists
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -183,8 +304,8 @@ def execute_create(
 
     click.echo("✓ Document saved successfully")
 
-    # Step 6: Update history
-    click.echo("\n📋 Step 6: Updating history...")
+    # Step 7: Update history
+    click.echo("\n📋 Step 7: Updating history...")
 
     # Load history to check if this is a regeneration
     history = load_history(repo_path)
@@ -197,6 +318,12 @@ def execute_create(
         relative_output = output
 
     doc_key = str(relative_output)
+
+    # Get relative path for source map
+    try:
+        relative_source_map = source_map_file.relative_to(repo_path)
+    except ValueError:
+        relative_source_map = source_map_file
 
     # Check if this is a regeneration
     is_regeneration = doc_key in history.get("docs", {})
@@ -214,7 +341,9 @@ def execute_create(
                 backup_path=str(relative_backup),
                 template_name=template_name,
                 template_path=str(template_path.relative_to(repo_path)) if template_path else "",
+                sources=sources_for_history,
                 repo_path=repo_path,
+                source_map_path=str(relative_source_map),
             )
             click.echo("✓ Added version entry for regeneration")
     else:
@@ -226,6 +355,7 @@ def execute_create(
             template_path=str(template_path.relative_to(repo_path)) if template_path else "",
             sources=sources_for_history,
             repo_path=repo_path,
+            source_map_path=str(relative_source_map),
         )
         click.echo("✓ Added new document entry")
 
@@ -236,8 +366,13 @@ def execute_create(
     click.echo("✅ Documentation created successfully!")
     click.echo("=" * 60)
     click.echo(f"Output: {output}")
-    click.echo(f"Template: {template_name} (customized)")
+    template_desc = f"{template_name} ({'customized' if do_customize else 'built-in'})"
+    click.echo(f"Template: {template_desc}")
+    click.echo(f"Source mapping: {source_map_file.name}")
     click.echo(f"Sources: {len(source_files)} files")
     if is_regeneration and backup_path:
         click.echo(f"Backup: {backup_path}")
     click.echo("=" * 60)
+
+    # Close logger
+    close_logger()
