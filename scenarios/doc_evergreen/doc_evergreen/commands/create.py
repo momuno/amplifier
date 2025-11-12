@@ -116,6 +116,22 @@ def execute_create(
     # Initialize logger
     log_dir = repo_path / ".doc-evergreen" / "logs"
     logger = init_logger(log_dir)
+
+    # Log command invocation with all arguments
+    logger.log_command_invocation(
+        command="create",
+        args={
+            "about": about,
+            "output": str(output),
+            "sources": sources if sources else "auto-discover",
+            "template": template if template else "auto-select",
+            "customize_template": should_customize_template,
+            "dry_run": dry_run,
+            "repository_path": str(repo_path),
+            "current_directory": str(Path.cwd()),
+        },
+    )
+
     logger.logger.info("=" * 80)
     logger.logger.info("CREATE COMMAND STARTED")
     logger.logger.info(f"About: {about}")
@@ -164,6 +180,26 @@ def execute_create(
 
     if not source_files:
         raise ValueError("No source files found for the specified topic/patterns")
+
+    # IMPORTANT: Filter out the output file from sources for CREATE operations
+    # We should NEVER include the output documentation as a source when creating new docs
+    # (Only during regeneration would this be appropriate, handled elsewhere)
+    try:
+        output_relative = output.relative_to(repo_path)
+        output_key = str(output_relative)
+
+        if output_key in source_files:
+            click.echo(f"\n⚠️  Filtering out output file from sources: {output_key}")
+            click.echo("   (Output file should not be used as a source for CREATE)")
+            del source_files[output_key]
+
+            # Also remove from sources_for_history if present
+            if output_key in sources_for_history:
+                sources_for_history.remove(output_key)
+
+    except ValueError:
+        # Output is outside repo_path, can't be in source_files anyway
+        pass
 
     # Show what was found
     click.echo(f"\nFound {len(source_files)} source files:")

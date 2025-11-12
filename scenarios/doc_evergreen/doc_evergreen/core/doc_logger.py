@@ -7,9 +7,29 @@ to enable debugging and understanding of the generation process.
 
 import json
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, TextIO
+
+
+class TeeStream:
+    """Stream that writes to multiple targets (e.g., stdout and log file)."""
+
+    def __init__(self, *streams: TextIO):
+        """Initialize with multiple output streams."""
+        self.streams = streams
+
+    def write(self, data: str) -> None:
+        """Write to all streams."""
+        for stream in self.streams:
+            stream.write(data)
+            stream.flush()
+
+    def flush(self) -> None:
+        """Flush all streams."""
+        for stream in self.streams:
+            stream.flush()
 
 
 class DocEvergreenLogger:
@@ -39,6 +59,17 @@ class DocEvergreenLogger:
 
         # Also create JSON log for structured data
         self.json_log_file = self.log_dir / f"doc-evergreen_{timestamp}.jsonl"
+
+        # Open a raw file handle for stdout/stderr capture
+        self.stdout_log = open(self.log_file, "a", encoding="utf-8")
+
+        # Store original stdout/stderr
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+
+        # Create tee streams to capture all output
+        sys.stdout = TeeStream(self.original_stdout, self.stdout_log)
+        sys.stderr = TeeStream(self.original_stderr, self.stdout_log)
 
         self.logger.info("=" * 80)
         self.logger.info("DOC-EVERGREEN LOGGING SESSION STARTED")
@@ -220,12 +251,57 @@ class DocEvergreenLogger:
         with open(self.json_log_file, "a") as f:
             f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
+    def log_command_invocation(self, command: str, args: dict[str, Any]) -> None:
+        """Log the command invocation with all arguments."""
+        self.logger.info("=" * 80)
+        self.logger.info("COMMAND INVOCATION")
+        self.logger.info(f"Command: {command}")
+        self.logger.info("Arguments:")
+        for key, value in args.items():
+            self.logger.info(f"  --{key}: {value}")
+        self.logger.info("=" * 80)
+
+        self._log_json(
+            {
+                "type": "command_invocation",
+                "command": command,
+                "arguments": args,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+
+    def log_function_call(self, function_name: str, args: dict[str, Any]) -> None:
+        """Log a function call with its arguments."""
+        self.logger.debug(f"FUNCTION CALL: {function_name}")
+        for key, value in args.items():
+            # Truncate long values for readability
+            str_value = str(value)
+            if len(str_value) > 200:
+                str_value = str_value[:200] + "..."
+            self.logger.debug(f"  {key}={str_value}")
+
+        self._log_json(
+            {
+                "type": "function_call",
+                "function": function_name,
+                "arguments": {k: str(v)[:200] for k, v in args.items()},
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+
     def close(self) -> None:
         """Close the logger and write summary."""
         self.logger.info("=" * 80)
         self.logger.info("DOC-EVERGREEN LOGGING SESSION ENDED")
         self.logger.info(f"Log files: {self.log_file}, {self.json_log_file}")
         self.logger.info("=" * 80)
+
+        # Restore original stdout/stderr
+        sys.stdout = self.original_stdout
+        sys.stderr = self.original_stderr
+
+        # Close the stdout log file
+        self.stdout_log.close()
 
         # Close handlers
         for handler in self.logger.handlers[:]:
@@ -255,3 +331,33 @@ def close_logger() -> None:
     if _logger:
         _logger.close()
         _logger = None
+
+
+def trace_function(func):
+    """Decorator to trace function calls with arguments."""
+    import functools
+    import inspect
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if _logger:
+            # Get function signature
+            sig = inspect.signature(func)
+            bound_args = sig.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+
+            # Convert to dict, handling Path objects
+            args_dict = {}
+            for name, value in bound_args.arguments.items():
+                if isinstance(value, Path):
+                    args_dict[name] = str(value)
+                elif isinstance(value, (list, tuple)) and value and isinstance(value[0], Path):
+                    args_dict[name] = [str(v) for v in value]
+                else:
+                    args_dict[name] = value
+
+            _logger.log_function_call(func.__name__, args_dict)
+
+        return func(*args, **kwargs)
+
+    return wrapper

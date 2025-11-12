@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pathspec
 
+from doc_evergreen.core.doc_logger import trace_function
+
 
 def find_files(patterns: list[str], base_path: Path, max_depth: int = 100) -> list[Path]:
     """
@@ -133,6 +135,7 @@ def read_file(file_path: Path) -> str:
         return f.read()
 
 
+@trace_function
 def gather_files(patterns: list[str], repo_path: Path, respect_gitignore: bool = True) -> dict[str, str]:
     """
     Gather files matching patterns/paths and read their contents.
@@ -323,12 +326,167 @@ def peek_file(file_path: Path, max_chars: int = 500) -> str:
         return "[unreadable]"
 
 
+def summarize_and_evaluate_file(file_path: Path, doc_goal: str, max_summary_chars: int = 800) -> dict:
+    """
+    Read a file fully, generate a summary, and evaluate its relevance to documentation goal.
+
+    Args:
+        file_path: Path to file
+        doc_goal: What the documentation is about
+        max_summary_chars: Maximum characters for summary
+
+    Returns:
+        Dictionary with 'summary', 'relevance_evaluation', 'relevance_score', 'error' keys
+    """
+    # Import here to avoid circular dependency
+    from doc_evergreen.core.generator import call_llm
+
+    try:
+        # Try to read file fully
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # If file is too large (>50KB), use peek with low relevance
+        if len(content) > 50000:
+            peek_content = peek_file(file_path, max_chars=500)
+            return {
+                "summary": peek_content + "\n[Large file - showing preview only]",
+                "relevance_evaluation": "File too large to fully analyze",
+                "relevance_score": 3,
+                "error": None,
+            }
+
+        # Generate summary and relevance evaluation using LLM
+        prompt = f"""Analyze this file and provide:
+1. A concise summary (max {max_summary_chars} chars) covering:
+   - What this file does/contains
+   - Key functionality or content
+   - Technologies/frameworks used
+
+2. Evaluate how relevant this file is to the documentation goal
+3. Rate relevance on a scale of 1-10 (1=not relevant, 10=highly relevant)
+
+Documentation Goal: {doc_goal}
+
+File name: {file_path.name}
+
+File content:
+{content}
+
+Respond in this EXACT format:
+
+SUMMARY:
+<your summary here>
+
+RELEVANCE_EVALUATION:
+<explain why this file is or isn't relevant to the documentation goal>
+
+RELEVANCE_SCORE: <number 1-10>"""
+
+        response = call_llm(prompt, max_tokens=800, temperature=0.3)
+
+        # Parse response
+        summary = ""
+        evaluation = ""
+        score = 5  # Default middle score
+
+        lines = response.split("\n")
+        current_section = None
+
+        for line in lines:
+            line_stripped = line.strip()
+
+            if line_stripped.startswith("SUMMARY:"):
+                current_section = "summary"
+                # Get text after "SUMMARY:" on same line if any
+                remainder = line_stripped[8:].strip()
+                if remainder:
+                    summary = remainder
+                continue
+            elif line_stripped.startswith("RELEVANCE_EVALUATION:"):
+                current_section = "evaluation"
+                remainder = line_stripped[21:].strip()
+                if remainder:
+                    evaluation = remainder
+                continue
+            elif line_stripped.startswith("RELEVANCE_SCORE:"):
+                current_section = None
+                # Extract score
+                score_text = line_stripped[16:].strip()
+                try:
+                    score = int(score_text)
+                    # Clamp to 1-10
+                    score = max(1, min(10, score))
+                except ValueError:
+                    score = 5
+                continue
+
+            # Accumulate content for current section
+            if current_section == "summary" and line_stripped:
+                if summary:
+                    summary += " " + line_stripped
+                else:
+                    summary = line_stripped
+            elif current_section == "evaluation" and line_stripped:
+                if evaluation:
+                    evaluation += " " + line_stripped
+                else:
+                    evaluation = line_stripped
+
+        # Ensure we have at least some content
+        if not summary:
+            summary = "Unable to parse summary"
+        if not evaluation:
+            evaluation = "Unable to parse evaluation"
+
+        return {
+            "summary": summary.strip(),
+            "relevance_evaluation": evaluation.strip(),
+            "relevance_score": score,
+            "error": None,
+        }
+
+    except UnicodeDecodeError:
+        return {
+            "summary": "[binary file]",
+            "relevance_evaluation": "Binary file - not analyzable",
+            "relevance_score": 1,
+            "error": "UnicodeDecodeError",
+        }
+    except Exception as e:
+        # Fallback to peek if LLM fails
+        peek_content = peek_file(file_path, max_chars=500)
+        return {
+            "summary": peek_content + f"\n[Analysis failed: {str(e)[:50]}]",
+            "relevance_evaluation": "Analysis failed - defaulting to low relevance",
+            "relevance_score": 3,
+            "error": str(e),
+        }
+
+
+def summarize_file_with_llm(file_path: Path, max_summary_chars: int = 1000) -> str:
+    """
+    Legacy function for backward compatibility. Use summarize_and_evaluate_file() for new code.
+
+    Args:
+        file_path: Path to file
+        max_summary_chars: Maximum characters for summary
+
+    Returns:
+        Summary of file contents or error message
+    """
+    result = summarize_and_evaluate_file(
+        file_path, doc_goal="general documentation", max_summary_chars=max_summary_chars
+    )
+    return result["summary"]
+
+
 def format_files_for_llm(file_info: list[dict]) -> str:
     """
     Format file information for LLM prompt.
 
     Args:
-        file_info: List of dicts with path, name, size, preview
+        file_info: List of dicts with path, name, size, summary, relevance_score, relevance_evaluation
 
     Returns:
         Formatted string for prompt
@@ -336,11 +494,25 @@ def format_files_for_llm(file_info: list[dict]) -> str:
     if not file_info:
         return "(no files at this level)"
 
+    # Sort by relevance score (highest first) for better context
+    sorted_info = sorted(file_info, key=lambda x: x.get("relevance_score", 0), reverse=True)
+
     lines = []
-    for info in file_info[:20]:  # Limit to prevent token overload
+    for info in sorted_info[:20]:  # Limit to prevent token overload
         size_kb = info["size"] / 1024
-        lines.append(f"\n{info['path']} ({size_kb:.1f} KB)")
-        lines.append(f"Preview: {info['preview'][:200]}")
+        score = info.get("relevance_score", 0)
+
+        # Use emoji indicators for relevance level
+        if score >= 8:
+            relevance_indicator = "🟢"  # High relevance
+        elif score >= 5:
+            relevance_indicator = "🟡"  # Medium relevance
+        else:
+            relevance_indicator = "🔴"  # Low relevance
+
+        lines.append(f"\n{relevance_indicator} {info['path']} ({size_kb:.1f} KB) [Relevance: {score}/10]")
+        lines.append(f"   Summary: {info['summary']}")
+        lines.append(f"   Why: {info.get('relevance_evaluation', 'No evaluation')}")
 
     if len(file_info) > 20:
         lines.append(f"\n... and {len(file_info) - 20} more files")
@@ -348,12 +520,176 @@ def format_files_for_llm(file_info: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def peek_directory_contents(dir_path: Path) -> dict:
+    """
+    Peek into a directory to see what's inside (names only, no content).
+
+    Args:
+        dir_path: Path to directory
+
+    Returns:
+        Dictionary with subdirectory names and file names
+    """
+    try:
+        items = list(dir_path.iterdir())
+        subdirs = [item.name for item in items if item.is_dir()]
+        files = [item.name for item in items if item.is_file()]
+
+        return {
+            "subdirs": sorted(subdirs),
+            "files": sorted(files),
+            "total_items": len(subdirs) + len(files),
+        }
+    except PermissionError:
+        return {"subdirs": [], "files": [], "total_items": 0, "error": "Permission denied"}
+    except Exception as e:
+        return {"subdirs": [], "files": [], "total_items": 0, "error": str(e)}
+
+
+def evaluate_directory_relevance(dir_path: Path, doc_goal: str, repo_path: Path) -> dict:
+    """
+    Evaluate directory relevance based on its contents (names only).
+
+    Args:
+        dir_path: Path to directory
+        doc_goal: What the documentation is about
+        repo_path: Repository root path
+
+    Returns:
+        Dictionary with relevance_evaluation, relevance_score, contents
+    """
+    # Import here to avoid circular dependency
+    from doc_evergreen.core.generator import call_llm
+
+    # Get directory contents
+    contents = peek_directory_contents(dir_path)
+
+    # Handle errors
+    if contents.get("error"):
+        return {
+            "relevance_evaluation": f"Cannot access: {contents['error']}",
+            "relevance_score": 1,
+            "subdirs": [],
+            "files": [],
+            "error": contents["error"],
+        }
+
+    # If directory is empty, low relevance
+    if contents["total_items"] == 0:
+        return {
+            "relevance_evaluation": "Empty directory",
+            "relevance_score": 1,
+            "subdirs": [],
+            "files": [],
+            "error": None,
+        }
+
+    # Get relative path for display
+    try:
+        rel_path = dir_path.relative_to(repo_path)
+        dir_display = str(rel_path)
+    except ValueError:
+        dir_display = str(dir_path)
+
+    # Create lists for display (limit to prevent token overflow)
+    subdirs_display = contents["subdirs"][:20]
+    files_display = contents["files"][:20]
+
+    if len(contents["subdirs"]) > 20:
+        subdirs_display.append(f"... and {len(contents['subdirs']) - 20} more")
+    if len(contents["files"]) > 20:
+        files_display.append(f"... and {len(contents['files']) - 20} more")
+
+    # Build prompt for LLM
+    prompt = f"""Evaluate how relevant this directory is to exploring for documentation generation.
+
+Documentation Goal: {doc_goal}
+
+Directory: {dir_display}
+
+SUBDIRECTORIES in this directory:
+{chr(10).join(f"  - {name}" for name in subdirs_display) if subdirs_display else "  (none)"}
+
+FILES in this directory:
+{chr(10).join(f"  - {name}" for name in files_display) if files_display else "  (none)"}
+
+Based ONLY on these names (not file contents), evaluate:
+1. How relevant is this directory to the documentation goal?
+2. What kind of content might be inside based on naming patterns?
+3. Should this directory be explored deeper?
+
+Rate relevance on a scale of 1-10 (1=not relevant, 10=highly relevant)
+
+Respond in this EXACT format:
+
+RELEVANCE_EVALUATION:
+<explain what you think is in this directory and why it is/isn't relevant>
+
+RELEVANCE_SCORE: <number 1-10>"""
+
+    try:
+        response = call_llm(prompt, max_tokens=400, temperature=0.3)
+
+        # Parse response
+        evaluation = ""
+        score = 5  # Default middle score
+
+        lines = response.split("\n")
+        current_section = None
+
+        for line in lines:
+            line_stripped = line.strip()
+
+            if line_stripped.startswith("RELEVANCE_EVALUATION:"):
+                current_section = "evaluation"
+                remainder = line_stripped[21:].strip()
+                if remainder:
+                    evaluation = remainder
+                continue
+            elif line_stripped.startswith("RELEVANCE_SCORE:"):
+                current_section = None
+                score_text = line_stripped[16:].strip()
+                try:
+                    score = int(score_text)
+                    score = max(1, min(10, score))
+                except ValueError:
+                    score = 5
+                continue
+
+            if current_section == "evaluation" and line_stripped:
+                if evaluation:
+                    evaluation += " " + line_stripped
+                else:
+                    evaluation = line_stripped
+
+        if not evaluation:
+            evaluation = "Unable to parse evaluation"
+
+        return {
+            "relevance_evaluation": evaluation.strip(),
+            "relevance_score": score,
+            "subdirs": contents["subdirs"],
+            "files": contents["files"],
+            "error": None,
+        }
+
+    except Exception as e:
+        # Fallback on error
+        return {
+            "relevance_evaluation": f"Evaluation failed: {str(e)[:50]}",
+            "relevance_score": 3,
+            "subdirs": contents["subdirs"],
+            "files": contents["files"],
+            "error": str(e),
+        }
+
+
 def format_dirs_for_llm(dir_info: list[dict]) -> str:
     """
     Format directory information for LLM prompt.
 
     Args:
-        dir_info: List of dicts with path, name, file_count
+        dir_info: List of dicts with path, name, relevance_score, relevance_evaluation, subdirs, files
 
     Returns:
         Formatted string for prompt
@@ -361,12 +697,39 @@ def format_dirs_for_llm(dir_info: list[dict]) -> str:
     if not dir_info:
         return "(no subdirectories at this level)"
 
-    lines = []
-    for info in dir_info[:30]:  # Show more dirs since they're smaller
-        lines.append(f"- {info['path']} ({info['file_count']} files)")
+    # Sort by relevance score (highest first)
+    sorted_info = sorted(dir_info, key=lambda x: x.get("relevance_score", 0), reverse=True)
 
-    if len(dir_info) > 30:
-        lines.append(f"... and {len(dir_info) - 30} more directories")
+    lines = []
+    for info in sorted_info[:20]:  # Limit to prevent token overload
+        score = info.get("relevance_score", 0)
+
+        # Use emoji indicators for relevance level
+        if score >= 8:
+            relevance_indicator = "🟢"  # High relevance
+        elif score >= 5:
+            relevance_indicator = "🟡"  # Medium relevance
+        else:
+            relevance_indicator = "🔴"  # Low relevance
+
+        subdir_count = len(info.get("subdirs", []))
+        file_count = len(info.get("files", []))
+
+        lines.append(
+            f"\n{relevance_indicator} {info['path']} ({subdir_count} subdirs, {file_count} files) [Relevance: {score}/10]"
+        )
+        lines.append(f"   Why: {info.get('relevance_evaluation', 'No evaluation')}")
+
+        # Show some example names to give context
+        if info.get("files"):
+            sample_files = info["files"][:3]
+            lines.append(f"   Sample files: {', '.join(sample_files)}")
+        if info.get("subdirs"):
+            sample_dirs = info["subdirs"][:3]
+            lines.append(f"   Sample subdirs: {', '.join(sample_dirs)}")
+
+    if len(dir_info) > 20:
+        lines.append(f"\n... and {len(dir_info) - 20} more directories")
 
     return "\n".join(lines)
 
@@ -524,19 +887,23 @@ def llm_guided_discovery(about: str, repo_path: Path) -> list[str]:
             click.echo("  → Empty, skipping")
             continue
 
-        # Prepare file info for LLM
+        # Prepare file info for LLM - generate summaries and relevance evaluations
+        click.echo(f"  📝 Analyzing {len(files)} files for relevance...")
         file_info = []
         for f in files:
             try:
                 rel_path = f.relative_to(repo_path)
-                content_peek = peek_file(f, max_chars=500)
 
-                # Log file peek
+                # Generate summary and evaluate relevance using LLM
+                analysis = summarize_and_evaluate_file(f, doc_goal=about, max_summary_chars=800)
+
+                # Log file analysis
                 if logger:
                     logger.log_file_read(
                         file_path=str(rel_path),
-                        reason=f"Peeking file for LLM discovery decision at depth {depth}",
-                        content_preview=content_peek,
+                        reason=f"Analyzing file relevance for discovery decision at depth {depth}",
+                        content_preview=f"Summary: {analysis['summary'][:300]}... | "
+                        f"Relevance: {analysis['relevance_score']}/10 - {analysis['relevance_evaluation'][:200]}",
                     )
 
                 file_info.append(
@@ -544,43 +911,105 @@ def llm_guided_discovery(about: str, repo_path: Path) -> list[str]:
                         "path": str(rel_path),
                         "name": f.name,
                         "size": f.stat().st_size,
-                        "preview": content_peek,
+                        "summary": analysis["summary"],
+                        "relevance_evaluation": analysis["relevance_evaluation"],
+                        "relevance_score": analysis["relevance_score"],
                     }
                 )
-            except Exception:
+            except Exception as e:
+                # Skip files we can't process
+                if logger:
+                    logger.log_error(
+                        error_type="File Analysis Failed",
+                        error_message=str(e),
+                        context={"file": str(rel_path), "depth": depth},
+                    )
                 continue
 
-        # Prepare directory info for LLM
+        # Prepare directory info for LLM - evaluate relevance
+        click.echo(f"  📂 Evaluating {len(subdirs)} subdirectories...")
         dir_info = []
         for d in subdirs:
             try:
                 rel_path = d.relative_to(repo_path)
-                # Count files in directory (shallow)
-                try:
-                    file_count = len([item for item in d.iterdir() if item.is_file()])
-                except Exception:
-                    file_count = 0
-                dir_info.append({"path": str(rel_path), "name": d.name, "file_count": file_count})
-            except Exception:
+
+                # Evaluate directory relevance based on contents
+                evaluation = evaluate_directory_relevance(d, doc_goal=about, repo_path=repo_path)
+
+                # Log directory evaluation
+                if logger:
+                    logger.log_discovery_step(
+                        depth=depth + 1,
+                        directory=str(rel_path),
+                        files_found=len(evaluation.get("files", [])),
+                        dirs_found=len(evaluation.get("subdirs", [])),
+                        selected_files=[],
+                        selected_dirs=[],
+                        reasoning=f"Directory relevance: {evaluation['relevance_score']}/10 - {evaluation['relevance_evaluation'][:200]}",
+                    )
+
+                dir_info.append(
+                    {
+                        "path": str(rel_path),
+                        "name": d.name,
+                        "relevance_evaluation": evaluation["relevance_evaluation"],
+                        "relevance_score": evaluation["relevance_score"],
+                        "subdirs": evaluation.get("subdirs", []),
+                        "files": evaluation.get("files", []),
+                    }
+                )
+            except Exception as e:
+                # Skip directories we can't process
+                if logger:
+                    logger.log_error(
+                        error_type="Directory Evaluation Failed",
+                        error_message=str(e),
+                        context={"directory": str(rel_path), "depth": depth},
+                    )
                 continue
 
         # Build prompt for LLM
-        click.echo("  🤖 Asking LLM to decide relevance...")
+        click.echo("  🤖 Asking LLM to make final selection...")
 
-        prompt = f"""You are helping discover relevant files for documentation generation.
+        # Calculate average relevance scores for context
+        avg_file_score = sum(info.get("relevance_score", 0) for info in file_info) / len(file_info) if file_info else 0
+        avg_dir_score = sum(info.get("relevance_score", 0) for info in dir_info) / len(dir_info) if dir_info else 0
+
+        prompt = f"""You are making final file selection decisions for documentation generation.
 
 Documentation Goal: {about}
 
 Current Directory: {current_rel}
 Depth Level: {depth}
 
-FILES at this level:
+FILES at this level (sorted by relevance, highest first):
 {format_files_for_llm(file_info)}
 
-SUBDIRECTORIES at this level:
+SUBDIRECTORIES at this level (sorted by relevance, highest first):
 {format_dirs_for_llm(dir_info)}
 
-Task: Decide which files are relevant to the documentation goal and which subdirectories should be explored deeper.
+CONTEXT:
+- Each file has been fully read, summarized, and scored for relevance (1-10 scale)
+- Each directory has been peeked into (contents listed) and scored for relevance
+- 🟢 Green (8-10): Highly relevant - strong candidate
+- 🟡 Yellow (5-7): Moderately relevant - consider including
+- 🔴 Red (1-4): Low relevance - likely skip
+- Average file relevance: {avg_file_score:.1f}/10
+- Average directory relevance: {avg_dir_score:.1f}/10
+
+Task: Based on the individual relevance evaluations, decide:
+1. Which files should be included in the documentation
+2. Which subdirectories should be explored deeper
+
+Guidelines for FILES:
+- Prioritize files scored 7+ (highly relevant)
+- Consider files scored 5-7 if they add important context
+- Generally skip files scored below 5
+
+Guidelines for DIRECTORIES:
+- Explore directories scored 7+ (likely contain relevant content)
+- Consider directories scored 5-7 if they might have supporting files
+- Skip directories scored below 5 (unlikely to yield relevant files)
 
 Respond EXACTLY in this format:
 
@@ -592,7 +1021,7 @@ EXPLORE_DIRECTORIES:
 - path/to/subdir1
 - path/to/subdir2
 
-REASON: <brief explanation of your decisions>
+REASON: <explain your selection strategy, referencing both file and directory relevance scores>
 
 If no files are relevant, write "- NONE" under RELEVANT_FILES.
 If no directories should be explored, write "- NONE" under EXPLORE_DIRECTORIES.
@@ -653,16 +1082,34 @@ If no directories should be explored, write "- NONE" under EXPLORE_DIRECTORIES.
                 reasoning=reason,
             )
 
-        # Show LLM's decision
+        # Show LLM's decision with relevance context
         click.echo(f"  ✓ LLM selected {len(selected_files)} files")
         if selected_files:
+            # Create a lookup for relevance scores
+            score_lookup = {info["path"]: info["relevance_score"] for info in file_info}
             for f in selected_files:
-                click.echo(f"    • {f}")
+                score = score_lookup.get(f, 0)
+                if score >= 8:
+                    indicator = "🟢"
+                elif score >= 5:
+                    indicator = "🟡"
+                else:
+                    indicator = "🔴"
+                click.echo(f"    {indicator} {f} [{score}/10]")
 
         click.echo(f"  ✓ LLM wants to explore {len(selected_dirs)} subdirectories")
         if selected_dirs:
+            # Create a lookup for directory relevance scores
+            dir_score_lookup = {info["path"]: info["relevance_score"] for info in dir_info}
             for d in selected_dirs:
-                click.echo(f"    → {d}")
+                score = dir_score_lookup.get(d, 0)
+                if score >= 8:
+                    indicator = "🟢"
+                elif score >= 5:
+                    indicator = "🟡"
+                else:
+                    indicator = "🔴"
+                click.echo(f"    {indicator} {d} [{score}/10]")
 
         # Show reasoning
         if reason:
