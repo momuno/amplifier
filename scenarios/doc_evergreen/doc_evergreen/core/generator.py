@@ -6,9 +6,10 @@ Does NOT use Claude Code SDK to avoid conflicts with git hooks.
 """
 
 import time
-from pathlib import Path
 
 import anthropic
+
+from doc_evergreen.prompts import load_prompt
 
 
 def load_api_key() -> str:
@@ -22,6 +23,8 @@ def load_api_key() -> str:
         FileNotFoundError: If API key file doesn't exist
         ValueError: If API key is empty
     """
+    from pathlib import Path
+
     # Try .claude/api_key.txt in current directory or parent directories
     current = Path.cwd()
 
@@ -122,57 +125,149 @@ def call_llm(
     raise RuntimeError("Failed to get response from LLM")
 
 
-def decide_if_customization_needed(
-    builtin_template: str, about: str, sources: dict[str, str], template_name: str
-) -> tuple[bool, str]:
+def summarize_file(file_path: str, file_content: str) -> tuple[str, str, str]:
     """
-    Use LLM to decide if template customization would be beneficial.
+    Generate a summary of a source file.
 
     Args:
-        builtin_template: Built-in template content
-        about: Description of what documentation is about
-        sources: Dictionary of source file paths to contents
-        template_name: Name of the template being considered
+        file_path: Path to the file (for context)
+        file_content: Content of the file to summarize
 
     Returns:
-        Tuple of (should_customize, reason)
+        Tuple of (summary_text, prompt_name, prompt_version)
     """
-    # Format a sample of source files
-    formatted_sources = format_sources(sources, max_total_length=8000)
+    prompt_name = "summarize_file"
+    prompt_template, prompt_version = load_prompt(prompt_name, return_version=True)
+    prompt = prompt_template.format(file_path=file_path, file_content=file_content)
 
-    prompt = f"""You are evaluating whether a documentation template needs customization for a specific project.
+    summary_text = call_llm(prompt, max_tokens=200)
+    return (summary_text, prompt_name, prompt_version)
 
-Template: {template_name}
-Topic: {about}
 
-Built-in Template Structure:
-{builtin_template[:1000]}... [truncated]
+def score_file_relevancy(file_path: str, file_summary: str, doc_description: str) -> tuple[str, int]:
+    """
+    Score the relevancy of a source file for generating a specific document.
 
-Source Files Sample:
-{formatted_sources}
+    Args:
+        file_path: Path to the source file
+        file_summary: Summary of the source file
+        doc_description: Description of the document to be generated
 
-Question: Would this project benefit from template customization?
+    Returns:
+        Tuple of (relevancy_explanation, relevancy_score)
+        where score is 1-10 (10 = most relevant)
+    """
+    prompt_template = load_prompt("score_relevancy")
+    prompt = prompt_template.format(file_path=file_path, file_summary=file_summary, doc_description=doc_description)
 
-Consider:
-1. Does the source code reveal specific architectural patterns or components that should have dedicated sections?
-2. Are there project-specific topics (like CLI commands, API endpoints, configuration options) that would warrant custom sections?
-3. Would the tone/style need adjustment for the project's audience?
-4. Is the built-in template structure sufficient, or would custom sections improve the documentation?
+    response = call_llm(prompt, max_tokens=300)
 
-Respond with EXACTLY one of:
-- "YES: [brief reason why customization would help]"
-- "NO: [brief reason why template is sufficient as-is]"
-"""
+    # Parse JSON response
+    import json
 
-    response = call_llm(prompt, max_tokens=200)
+    try:
+        result = json.loads(response)
+        explanation = result.get("relevancy_explanation", "")
+        score = result.get("relevancy_score", 5)
+        return (explanation, score)
+    except json.JSONDecodeError:
+        # If JSON parsing fails, return default values
+        return ("Unable to parse relevancy response", 5)
 
-    # Parse response
-    if response.strip().upper().startswith("YES"):
-        reason = response.split(":", 1)[1].strip() if ":" in response else "Customization recommended"
-        return (True, reason)
-    else:
-        reason = response.split(":", 1)[1].strip() if ":" in response else "Template sufficient as-is"
-        return (False, reason)
+
+def create_customized_template(
+    template_guide: str,
+    template_guide_version: str,
+    about: str,
+    source_file_data: list[dict],
+) -> tuple[str, dict[str, str], str, str]:
+    """
+    Create a customized template with section-to-file mappings using relevancy scores.
+
+    Args:
+        template_guide: Base template guide content
+        template_guide_version: Version timestamp of the template guide
+        about: Description of what documentation is about
+        source_file_data: List of dicts containing file_path, summary, and relevancy data
+
+    Returns:
+        Tuple of (customized_template, selected_files, prompt_name, prompt_version)
+        where selected_files maps file path to reason for inclusion
+    """
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Format source file data with summaries and relevancy for the prompt
+    formatted_lines = []
+    for file_data in source_file_data:
+        file_path = file_data["file_path"]
+        summary = file_data["summary"]["text"]
+        relevancy_explanation = file_data["relevancy"]["explanation"]
+        relevancy_score = file_data["relevancy"]["score"]
+
+        formatted_lines.append(
+            f"- {file_path}:\n"
+            f"  Summary: {summary}\n"
+            f"  Relevancy Score: {relevancy_score}/10\n"
+            f"  Relevancy Explanation: {relevancy_explanation}"
+        )
+
+    formatted_source_data = "\n\n".join(formatted_lines)
+
+    prompt_name = "create_customized_template"
+    prompt_template, prompt_version = load_prompt(prompt_name, return_version=True)
+    prompt = prompt_template.format(
+        template_guide=template_guide, doc_description=about, formatted_source_data=formatted_source_data
+    )
+
+    response = call_llm(prompt, max_tokens=4000)
+
+    # Log raw response for debugging
+    logger.debug(f"LLM raw response preview: {response[:500]}")
+
+    # Parse JSON response - handle markdown-wrapped JSON and other formats
+    import re
+
+    try:
+        # First, try direct JSON parsing
+        result = json.loads(response)
+        customized_template = result.get("customized_template", "")
+        selected_files = result.get("selected_files_with_reasons", {})
+        return (customized_template, selected_files, prompt_name, prompt_version)
+    except (json.JSONDecodeError, KeyError) as e:
+        # Try to extract JSON from markdown code blocks or surrounding text
+        # Look for JSON between ```json and ``` or just between { and }
+        json_pattern = r"```(?:json)?\s*(\{.*?\})\s*```"
+        match = re.search(json_pattern, response, re.DOTALL)
+
+        if match:
+            try:
+                result = json.loads(match.group(1))
+                customized_template = result.get("customized_template", "")
+                selected_files = result.get("selected_files_with_reasons", {})
+                return (customized_template, selected_files, prompt_name, prompt_version)
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        # Try to find JSON object in the response
+        brace_match = re.search(r"\{.*\}", response, re.DOTALL)
+        if brace_match:
+            try:
+                result = json.loads(brace_match.group(0))
+                customized_template = result.get("customized_template", "")
+                selected_files = result.get("selected_files_with_reasons", {})
+                return (customized_template, selected_files, prompt_name, prompt_version)
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        # Last resort: log error with details and return response as template
+        logger.error(f"Failed to parse LLM response as JSON. Error: {e}")
+        logger.error(f"Response preview: {response[:500]}")
+
+        # Fallback: treat entire response as template with no file selection
+        return (response, {}, prompt_name, prompt_version)
 
 
 def customize_template(
@@ -200,25 +295,13 @@ def customize_template(
     if existing_doc:
         existing_doc_context = f"\n- Existing Document Structure:\n{existing_doc[:2000]}"  # Limit to 2000 chars
 
-    prompt = f"""You are customizing a documentation template for a software project.
-
-Built-in Template:
-{builtin_template}
-
-Project Context:
-- Topic: {about}{source_context}{existing_doc_context}
-
-Task:
-Create a customized version of this template that:
-1. Maintains the overall structure and instructions for AI
-2. Adjusts tone/style for the specific project context
-3. Adds project-specific sections if the source files reveal topics relevant to the documentation goal that warrant dedicated sections
-4. Includes appropriate placeholder examples based on actual code patterns seen in sources
-
-IMPORTANT: The customized template should still be a template with instructions for generating documentation, not the final documentation itself.
-
-Return ONLY the customized template in markdown format. Do not add YAML frontmatter - that will be added automatically.
-"""
+    prompt_template = load_prompt("customize_template")
+    prompt = prompt_template.format(
+        builtin_template=builtin_template,
+        about=about,
+        source_context=source_context,
+        existing_doc_context=existing_doc_context,
+    )
 
     return call_llm(prompt, max_tokens=4000)
 
@@ -255,95 +338,42 @@ def format_sources(sources: dict[str, str], max_total_length: int = 50000) -> st
     return "".join(formatted)
 
 
-def generate_document(template: str, sources: dict[str, str], about: str) -> str:
-    """
-    Generate documentation from template and source files.
-
-    Args:
-        template: Template content (with instructions)
-        sources: Dictionary of file paths to contents
-        about: Description of what documentation is about
-
-    Returns:
-        Generated documentation content
-    """
-    formatted_sources = format_sources(sources)
-
-    prompt = f"""You are generating documentation for a software project.
-
-Template:
-{template}
-
-Source Files:
-{formatted_sources}
-
-Topic: {about}
-
-Instructions:
-1. Follow the template structure and instructions carefully
-2. Extract relevant information from the source files provided
-3. Generate clear, accurate, technical documentation
-4. Use proper markdown formatting
-5. Include code examples from the source files where appropriate
-6. Ensure all information is based on the actual source files
-7. If the template has a {{{{SOURCE_FILES}}}} placeholder, replace it with content extracted from the sources
-
-Generate the complete documentation following the template:
-"""
-
-    return call_llm(prompt, max_tokens=4000)
-
-
-def generate_document_with_mapping(
-    template: str, sources: dict[str, str], about: str, source_mapping: dict[str, list[str]]
+def generate_document(
+    customized_template: str,
+    about: str,
+    selected_files: dict[str, str],
+    source_files_content: dict[str, str],
 ) -> str:
     """
-    Generate documentation using intelligent source-to-section mapping.
-
-    This function uses the source mapping to provide section-specific context to the LLM,
-    making generation more targeted and efficient.
+    Generate documentation from customized template and selected source files.
 
     Args:
-        template: Template content (with instructions)
-        sources: Dictionary of file paths to contents
+        customized_template: Customized template content with instructions and placeholders
         about: Description of what documentation is about
-        source_mapping: Dictionary mapping section names to relevant source file paths
+        selected_files: Dictionary mapping file paths to reasons for inclusion
+        source_files_content: Dictionary mapping file paths to their full content
 
     Returns:
         Generated documentation content
     """
-    import json
+    # Format selected files with reasons for the prompt
+    selected_files_lines = []
+    for file_path, reason in selected_files.items():
+        selected_files_lines.append(f"- {file_path}: {reason}")
+    selected_files_with_reasons = "\n".join(selected_files_lines)
 
-    formatted_sources = format_sources(sources)
+    # Format source files content for the prompt
+    source_content_lines = []
+    for file_path, content in source_files_content.items():
+        source_content_lines.append(f"--- File: {file_path} ---\n{content}\n")
+    source_files_content_formatted = "\n".join(source_content_lines)
 
-    # Format the mapping for the prompt
-    mapping_text = json.dumps(source_mapping, indent=2)
-
-    prompt = f"""You are generating documentation for a software project using intelligent source mapping.
-
-Template:
-{template}
-
-Topic: {about}
-
-Source Mapping (which sources to focus on for each section):
-{mapping_text}
-
-All Source Files:
-{formatted_sources}
-
-Instructions:
-1. Follow the template structure and instructions carefully
-2. For EACH SECTION, prioritize the sources listed in the mapping for that section
-3. You can reference other sources if absolutely necessary, but focus on mapped sources
-4. Extract relevant information from the appropriate source files
-5. Generate clear, accurate, technical documentation
-6. Use proper markdown formatting
-7. Include code examples from the source files where appropriate
-8. Ensure all information is based on the actual source files
-9. If the template has a {{{{SOURCE_FILES}}}} placeholder, replace it with content extracted from the sources
-
-Generate the complete documentation following the template and source mapping:
-"""
+    prompt_template = load_prompt("generate_document")
+    prompt = prompt_template.format(
+        doc_description=about,
+        customized_template=customized_template,
+        selected_files_with_reasons=selected_files_with_reasons,
+        source_files_content=source_files_content_formatted,
+    )
 
     return call_llm(prompt, max_tokens=4000)

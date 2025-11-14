@@ -7,19 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from doc_evergreen.core.template import (
-    create_template_metadata,
-    find_latest_version,
-    format_template_with_metadata,
-    get_builtin_templates_dir,
-    get_template_path,
-    list_builtin_templates,
-    load_builtin_template,
-    load_template_from_path,
-    parse_template_metadata,
-    save_template,
-    select_builtin_template,
-)
+from doc_evergreen.core.template import create_template_metadata
+from doc_evergreen.core.template import find_latest_version
+from doc_evergreen.core.template import format_template_with_metadata
+from doc_evergreen.core.template import get_builtin_templates_dir
+from doc_evergreen.core.template import get_template_path
+from doc_evergreen.core.template import list_builtin_templates
+from doc_evergreen.core.template import load_template_from_path
+from doc_evergreen.core.template import parse_template_metadata
+from doc_evergreen.core.template import save_template
 
 
 def test_get_builtin_templates_dir():
@@ -40,26 +36,9 @@ def test_list_builtin_templates():
     # Should return a list
     assert isinstance(templates, list)
 
-    # Should include our templates
-    assert "readme" in templates
-    assert "api-reference" in templates
-    assert "user-guide" in templates
-    assert "developer-guide" in templates
-
-
-def test_load_builtin_template_success():
-    """Test loading an existing built-in template."""
-    content = load_builtin_template("readme")
-
-    # Should return content
-    assert len(content) > 0
-    assert "README" in content or "readme" in content.lower()
-
-
-def test_load_builtin_template_not_found():
-    """Test loading non-existent built-in template."""
-    with pytest.raises(FileNotFoundError, match="not found"):
-        load_builtin_template("nonexistent-template")
+    # Template guide is now a JSON file, not a template
+    # list_builtin_templates only returns .md files
+    # So the list may be empty, which is fine
 
 
 def test_parse_template_metadata_with_frontmatter():
@@ -322,33 +301,3 @@ def test_get_template_path_no_versions():
 
         with pytest.raises(FileNotFoundError, match="No versions"):
             get_template_path("test", version=None, repo_path=repo)
-
-
-def test_select_builtin_template_readme():
-    """Test selecting template for README."""
-    template = select_builtin_template("Main project README")
-    assert template == "readme"
-
-
-def test_select_builtin_template_api():
-    """Test selecting template for API docs."""
-    template = select_builtin_template("API reference for module")
-    assert template == "api-reference"
-
-
-def test_select_builtin_template_user_guide():
-    """Test selecting template for user guide."""
-    template = select_builtin_template("User guide for CLI")
-    assert template == "user-guide"
-
-
-def test_select_builtin_template_developer():
-    """Test selecting template for developer guide."""
-    template = select_builtin_template("Contributing guidelines")
-    assert template == "developer-guide"
-
-
-def test_select_builtin_template_default():
-    """Test selecting template with no keyword match."""
-    template = select_builtin_template("Some random documentation")
-    assert template == "readme"  # Default

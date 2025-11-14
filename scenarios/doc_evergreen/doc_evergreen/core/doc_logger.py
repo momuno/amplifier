@@ -57,9 +57,6 @@ class DocEvergreenLogger:
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
-        # Also create JSON log for structured data
-        self.json_log_file = self.log_dir / f"doc-evergreen_{timestamp}.jsonl"
-
         # Open a raw file handle for stdout/stderr capture
         self.stdout_log = open(self.log_file, "a", encoding="utf-8")
 
@@ -97,29 +94,12 @@ class DocEvergreenLogger:
         self.logger.debug(response)
         self.logger.debug("=" * 87)
 
-        # Log to JSON for structured analysis
-        self._log_json(
-            {
-                "type": "llm_call",
-                "operation": operation,
-                "model": model,
-                "prompt_length": len(prompt),
-                "response_length": len(response),
-                "metadata": metadata or {},
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-
     def log_file_read(self, file_path: str, reason: str, content_preview: Optional[str] = None) -> None:
         """Log when a file is read."""
         self.logger.info(f"FILE READ: {file_path}")
         self.logger.info(f"  Reason: {reason}")
         if content_preview:
             self.logger.debug(f"  Preview (first 500 chars): {content_preview[:500]}")
-
-        self._log_json(
-            {"type": "file_read", "file_path": file_path, "reason": reason, "timestamp": datetime.now().isoformat()}
-        )
 
     def log_decision(
         self,
@@ -133,17 +113,6 @@ class DocEvergreenLogger:
         self.logger.info(f"  Choice: {decision}")
         if reasoning:
             self.logger.info(f"  Reasoning: {reasoning}")
-
-        self._log_json(
-            {
-                "type": "decision",
-                "decision_type": decision_type,
-                "decision": decision,
-                "reasoning": reasoning,
-                "metadata": metadata or {},
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
 
     def log_discovery_step(
         self,
@@ -162,20 +131,6 @@ class DocEvergreenLogger:
         self.logger.info(f"  Selected {len(selected_dirs)} dirs to explore: {', '.join(selected_dirs)}")
         self.logger.info(f"  Reasoning: {reasoning}")
 
-        self._log_json(
-            {
-                "type": "discovery_step",
-                "depth": depth,
-                "directory": directory,
-                "files_found": files_found,
-                "dirs_found": dirs_found,
-                "selected_files": selected_files,
-                "selected_dirs": selected_dirs,
-                "reasoning": reasoning,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-
     def log_template_selection(
         self, selected_template: str, customization_needed: bool, customization_reasoning: Optional[str] = None
     ) -> None:
@@ -185,32 +140,12 @@ class DocEvergreenLogger:
         if customization_reasoning:
             self.logger.info(f"  Reasoning: {customization_reasoning}")
 
-        self._log_json(
-            {
-                "type": "template_selection",
-                "template": selected_template,
-                "customization_needed": customization_needed,
-                "customization_reasoning": customization_reasoning,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-
     def log_source_mapping(self, section: str, sources: list[str], reasoning: Optional[str] = None) -> None:
         """Log source mapping for a template section."""
         self.logger.debug(f"SOURCE MAPPING: {section}")
         self.logger.debug(f"  Mapped to {len(sources)} sources: {', '.join(sources)}")
         if reasoning:
             self.logger.debug(f"  Reasoning: {reasoning}")
-
-        self._log_json(
-            {
-                "type": "source_mapping",
-                "section": section,
-                "sources": sources,
-                "reasoning": reasoning,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
 
     def log_generation_output(self, output_path: str, content_length: int, backup_path: Optional[str] = None) -> None:
         """Log the final generation output."""
@@ -219,37 +154,12 @@ class DocEvergreenLogger:
         if backup_path:
             self.logger.info(f"  Backup saved to: {backup_path}")
 
-        self._log_json(
-            {
-                "type": "generation_output",
-                "output_path": output_path,
-                "content_length": content_length,
-                "backup_path": backup_path,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-
     def log_error(self, error_type: str, error_message: str, context: Optional[dict[str, Any]] = None) -> None:
         """Log an error that occurred."""
         self.logger.error(f"ERROR: {error_type}")
         self.logger.error(f"  Message: {error_message}")
         if context:
             self.logger.error(f"  Context: {json.dumps(context, indent=2)}")
-
-        self._log_json(
-            {
-                "type": "error",
-                "error_type": error_type,
-                "error_message": error_message,
-                "context": context or {},
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-
-    def _log_json(self, data: dict[str, Any]) -> None:
-        """Log structured data to JSON file."""
-        with open(self.json_log_file, "a") as f:
-            f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
     def log_command_invocation(self, command: str, args: dict[str, Any]) -> None:
         """Log the command invocation with all arguments."""
@@ -261,15 +171,6 @@ class DocEvergreenLogger:
             self.logger.info(f"  --{key}: {value}")
         self.logger.info("=" * 80)
 
-        self._log_json(
-            {
-                "type": "command_invocation",
-                "command": command,
-                "arguments": args,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-
     def log_function_call(self, function_name: str, args: dict[str, Any]) -> None:
         """Log a function call with its arguments."""
         self.logger.debug(f"FUNCTION CALL: {function_name}")
@@ -280,20 +181,11 @@ class DocEvergreenLogger:
                 str_value = str_value[:200] + "..."
             self.logger.debug(f"  {key}={str_value}")
 
-        self._log_json(
-            {
-                "type": "function_call",
-                "function": function_name,
-                "arguments": {k: str(v)[:200] for k, v in args.items()},
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-
     def close(self) -> None:
         """Close the logger and write summary."""
         self.logger.info("=" * 80)
         self.logger.info("DOC-EVERGREEN LOGGING SESSION ENDED")
-        self.logger.info(f"Log files: {self.log_file}, {self.json_log_file}")
+        self.logger.info(f"Log file: {self.log_file}")
         self.logger.info("=" * 80)
 
         # Restore original stdout/stderr

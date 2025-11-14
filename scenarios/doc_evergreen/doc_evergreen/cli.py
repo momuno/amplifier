@@ -25,15 +25,12 @@ def cli() -> None:
       # Create new documentation
       doc-evergreen create --about "API reference" --output docs/API.md
 
-      # Regenerate from saved configuration
-      doc-evergreen regenerate README.md
-
-      # Regenerate all configured documents
-      doc-evergreen regenerate --all
+      # Create with specific sources
+      doc-evergreen create --about "API docs" --output docs/API.md --sources "src/**/*.py"
     """
     # This is a Click command group - the function body is not executed
-    # All functionality is in the subcommands (create, regenerate)
-    return None
+    # All functionality is in the subcommands (create)
+    return
 
 
 @cli.command()
@@ -54,26 +51,16 @@ def cli() -> None:
     help="Files to include - supports exact paths (e.g., 'README.md') and glob patterns (e.g., 'src/**/*.py'). Can be specified multiple times. Mix both types freely. If not provided, files will be auto-discovered.",
 )
 @click.option(
-    "--template",
-    help="Specific template to use (e.g., 'readme', 'api-reference'). If not provided, template will be auto-selected based on --about.",
-)
-@click.option(
-    "--customize-template/--no-customize-template",
-    default=None,
-    help="Whether to customize the template. If not specified: auto-customizes for LLM-selected templates, but uses specified templates directly.",
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Show what would be generated without writing files",
+    "--start-step",
+    type=int,
+    default=1,
+    help="Start from a specific step (1-5) for testing. Uses existing data from previous runs. Steps: 1=Discovery, 2=Summarization, 3=Relevancy, 4=Template, 5=Generation",
 )
 def create(
     about: str,
     output: Path,
     sources: tuple[str, ...],
-    template: str | None,
-    customize_template: bool | None,
-    dry_run: bool,
+    start_step: int,
 ) -> None:
     """
     Create new documentation from scratch.
@@ -92,8 +79,6 @@ def create(
     \b
     Optional Parameters:
       --sources    Files to include (auto-discovered if not provided)
-      --template   Template to use (auto-selected if not provided)
-      --dry-run    Preview without writing files
 
     \b
     Examples:
@@ -113,12 +98,6 @@ def create(
       doc-evergreen create \\
           --about "Contributing guide" \\
           --output "docs/CONTRIBUTING.md"
-
-      # Preview without writing
-      doc-evergreen create \\
-          --about "User guide" \\
-          --output "docs/USER_GUIDE.md" \\
-          --dry-run
     """
     from doc_evergreen.commands.create import execute_create
 
@@ -130,77 +109,7 @@ def create(
             about=about,
             output=output,
             sources=sources_list,
-            template=template,
-            should_customize_template=customize_template,
-            dry_run=dry_run,
-        )
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-
-
-@cli.command()
-@click.argument("doc_path", required=False, type=click.Path(path_type=Path))
-@click.option(
-    "--all",
-    "regenerate_all",
-    is_flag=True,
-    help="Regenerate all configured documents",
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Show what would be regenerated without writing files",
-)
-def regenerate(
-    doc_path: Path | None,
-    regenerate_all: bool,
-    dry_run: bool,
-) -> None:
-    """
-    Regenerate documentation from saved configuration.
-
-    This command uses the configuration saved in .doc-evergreen/history.yaml
-    to regenerate documents without needing to specify parameters again.
-
-    \b
-    Usage:
-      doc-evergreen regenerate <doc-path>    # Regenerate single document
-      doc-evergreen regenerate --all         # Regenerate all documents
-
-    \b
-    Examples:
-      # Regenerate single document
-      doc-evergreen regenerate README.md
-
-      # Regenerate all configured documents
-      doc-evergreen regenerate --all
-
-      # Preview what would be regenerated
-      doc-evergreen regenerate --all --dry-run
-    """
-    from doc_evergreen.commands.regenerate import execute_regenerate
-
-    # Validate arguments
-    if not doc_path and not regenerate_all:
-        click.echo("Error: Must specify either <doc-path> or --all flag", err=True)
-        click.echo("\nUsage:")
-        click.echo("  doc-evergreen regenerate <doc-path>")
-        click.echo("  doc-evergreen regenerate --all")
-        sys.exit(1)
-
-    if doc_path and regenerate_all:
-        click.echo("Error: Cannot specify both <doc-path> and --all flag", err=True)
-        click.echo("\nUsage:")
-        click.echo("  doc-evergreen regenerate <doc-path>")
-        click.echo("  doc-evergreen regenerate --all")
-        sys.exit(1)
-
-    try:
-        execute_regenerate(
-            doc_path=doc_path,
-            regenerate_all=regenerate_all,
-            dry_run=dry_run,
+            start_step=start_step,
         )
     except Exception as e:
         click.echo(f"Error: {e}", err=True)

@@ -1,0 +1,12 @@
+{
+  "versions": [
+    {
+      "version": "2025-01-14T12:00:00.000000+00:00",
+      "prompt": "You are generating documentation for a software project.\n\nDocument Topic: {doc_description}\n\nCustomized Template:\n{customized_template}\n\nSelected Source Files (with reasons for inclusion):\n{selected_files_with_reasons}\n\nFull Content of Selected Source Files:\n{source_files_content}\n\nInstructions:\n1. Follow the customized template structure and instructions carefully\n2. Use the \"reasons for inclusion\" to understand why each file was selected and what to extract from it\n3. Reference the full source file content to extract accurate information\n4. Generate clear, accurate, technical documentation based on actual source code\n5. Use proper markdown formatting\n6. Include code examples from the source files where appropriate\n7. Do NOT include a \"Source File Explanations\" section - integrate the information naturally\n8. Follow any {{{{FILE:path}}}} placeholders in the template to know which files to reference for each section\n9. Ensure all information is verifiable from the provided source files\n\nGenerate the complete documentation following the customized template:\n"
+    },
+    {
+      "version": "2025-01-13T19:00:00.000000+00:00",
+      "prompt": "You are generating documentation for a software project.\n\nTemplate:\n{template}\n\nTopic: {about}\n\nInstructions:\n1. Follow the template structure and instructions carefully\n2. Do NOT include ## Source File Explanations section in the final document. Use them only to help you generate the content.\n3. Extract relevant information from the source files provided\n4. Generate clear, accurate, technical documentation\n5. Use proper markdown formatting\n6. Include code examples from the source files where appropriate\n7. Ensure all information is based on the actual source files\n8. If the template has a {{{{SOURCE_FILES}}}} placeholder, replace it with content extracted from the sources\n9. Add source links or references as needed.\n\n\nGenerate the complete documentation following the template:\n"
+    }
+  ]
+}

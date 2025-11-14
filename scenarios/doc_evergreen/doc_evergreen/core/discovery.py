@@ -19,7 +19,8 @@ def find_files(patterns: list[str], base_path: Path, max_depth: int = 100) -> li
     Supports both:
     - Exact file paths: "README.md", "src/main.py"
     - Glob patterns: "src/**/*.py", "*.md"
-    - Mix of both: ["README.md", "src/**/*.py", "docs/guide.md"]
+    - Directory patterns: "src/", "docs" (includes all files in directory)
+    - Mix of both: ["README.md", "src/**/*.py", "docs/guide.md", "examples/"]
 
     Args:
         patterns: List of glob patterns or exact file paths
@@ -38,10 +39,23 @@ def find_files(patterns: list[str], base_path: Path, max_depth: int = 100) -> li
             matched_files.add(exact_path)
             continue
 
+        # Check if it's an exact directory path
+        if exact_path.is_dir():
+            # Include all files in the directory recursively
+            for file_path in exact_path.rglob("*"):
+                if file_path.is_file():
+                    matched_files.add(file_path)
+            continue
+
         # Otherwise treat as glob pattern
         for file_path in base_path.glob(pattern):
             if file_path.is_file():
                 matched_files.add(file_path)
+            elif file_path.is_dir():
+                # If glob matches a directory, include all files in it
+                for subfile in file_path.rglob("*"):
+                    if subfile.is_file():
+                        matched_files.add(subfile)
 
     return sorted(matched_files)
 
@@ -62,7 +76,7 @@ def load_gitignore(repo_path: Path) -> pathspec.PathSpec | None:
         return None
 
     try:
-        with open(gitignore_path, "r", encoding="utf-8") as f:
+        with open(gitignore_path, encoding="utf-8") as f:
             patterns = f.read().splitlines()
 
         # Filter out comments and empty lines
@@ -110,7 +124,7 @@ def validate_utf8(file_path: Path) -> bool:
         True if file is valid UTF-8, False otherwise
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             f.read()
         return True
     except (UnicodeDecodeError, FileNotFoundError):
@@ -131,7 +145,7 @@ def read_file(file_path: Path) -> str:
         UnicodeDecodeError: If file is not valid UTF-8
         FileNotFoundError: If file doesn't exist
     """
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -315,7 +329,7 @@ def peek_file(file_path: Path, max_chars: int = 500) -> str:
         First N characters or "[binary file]" or "[unreadable]"
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read(max_chars)
             if len(content) == max_chars:
                 content += "..."
@@ -343,7 +357,7 @@ def summarize_and_evaluate_file(file_path: Path, doc_goal: str, max_summary_char
 
     try:
         # Try to read file fully
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         # If file is too large (>50KB), use peek with low relevance
@@ -403,13 +417,13 @@ RELEVANCE_SCORE: <number 1-10>"""
                 if remainder:
                     summary = remainder
                 continue
-            elif line_stripped.startswith("RELEVANCE_EVALUATION:"):
+            if line_stripped.startswith("RELEVANCE_EVALUATION:"):
                 current_section = "evaluation"
                 remainder = line_stripped[21:].strip()
                 if remainder:
                     evaluation = remainder
                 continue
-            elif line_stripped.startswith("RELEVANCE_SCORE:"):
+            if line_stripped.startswith("RELEVANCE_SCORE:"):
                 current_section = None
                 # Extract score
                 score_text = line_stripped[16:].strip()
@@ -646,7 +660,7 @@ RELEVANCE_SCORE: <number 1-10>"""
                 if remainder:
                     evaluation = remainder
                 continue
-            elif line_stripped.startswith("RELEVANCE_SCORE:"):
+            if line_stripped.startswith("RELEVANCE_SCORE:"):
                 current_section = None
                 score_text = line_stripped[16:].strip()
                 try:
@@ -753,7 +767,7 @@ def parse_relevant_files(llm_response: str) -> list[str]:
         if "RELEVANT_FILES:" in line:
             in_section = True
             continue
-        elif any(keyword in line for keyword in ["EXPLORE_DIRECTORIES:", "REASON:"]):
+        if any(keyword in line for keyword in ["EXPLORE_DIRECTORIES:", "REASON:"]):
             in_section = False
             continue
 
@@ -785,7 +799,7 @@ def parse_explore_directories(llm_response: str) -> list[str]:
         if "EXPLORE_DIRECTORIES:" in line:
             in_section = True
             continue
-        elif "REASON:" in line:
+        if "REASON:" in line:
             in_section = False
             continue
 
@@ -1217,7 +1231,6 @@ def format_file_size(size_bytes: int) -> str:
     """
     if size_bytes < 1024:
         return f"{size_bytes} B"
-    elif size_bytes < 1024 * 1024:
+    if size_bytes < 1024 * 1024:
         return f"{size_bytes / 1024:.1f} KB"
-    else:
-        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    return f"{size_bytes / (1024 * 1024):.1f} MB"

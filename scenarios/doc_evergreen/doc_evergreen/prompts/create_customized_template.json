@@ -1,0 +1,12 @@
+{
+  "versions": [
+    {
+      "version": "2025-01-14T00:00:00.000000+00:00",
+      "prompt": "Create a customized documentation template based on the document description, template guide, and source files with their relevancy assessments.\n\nDocument Description:\n{doc_description}\n\nTemplate Guide:\n{template_guide}\n\nAvailable Source Files with Summaries and Relevancy Assessments:\n{formatted_source_data}\n\nIMPORTANT INSTRUCTIONS:\n1. Use the document description and template guide to structure the customized template\n2. For EACH source file, use its summary, relevancy explanation, and relevancy score to determine:\n   - Should this file be included in the template? (generally score >= 5 should be considered)\n   - If included, for which sections should it be referenced?\n3. Follow the template guide structure and format exactly\n4. Use {{{{FILE:path/to/file}}}} placeholders to indicate which files to reference in each section\n5. Do NOT create or reference any source files that were not provided\n6. Only include source files that are relevant based on their relevancy scores and explanations\n\nYour response MUST be valid JSON with this exact structure:\n{{\n  \"customized_template\": \"the full customized template content here with {{{{FILE:...}}}} placeholders\",\n  \"selected_files_with_reasons\": {{\n    \"path/to/file1.py\": \"reason this file was included\",\n    \"path/to/file2.md\": \"reason this file was included\"\n  }}\n}}\n\nGenerate the response:\n"
+    },
+    {
+      "version": "2025-01-13T19:00:00.000000+00:00",
+      "prompt": "Create a customized documentation template based on the user provided document description and resource summaries:\n\nTemplate Guide:\n{template_guide}\n\nUser provided document description: {about}\n\nAvailable Source Files and Summaries:\n{formatted_summaries}\n\nIMPORTANT: The customized documentation template must follow the exact template guide structure and instructions, but should be tailored to the specific project context. Do NOT create or reference any source files that were not provided.\n\nTask:\nCreate a customized template that:\n1. Defines clear sections for the documentation\n2. For each section, specifies which source files should be referenced\n3. Includes instructions for the AI on what to extract from each file for each section\n\nGenerate the customized template:\n"
+    }
+  ]
+}

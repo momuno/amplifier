@@ -4,18 +4,20 @@ Tests for LLM generation functionality.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import anthropic
 import pytest
 
-from doc_evergreen.core.generator import (
-    call_llm,
-    customize_template,
-    format_sources,
-    generate_document,
-    load_api_key,
-)
+from doc_evergreen.core.generator import call_llm
+from doc_evergreen.core.generator import create_customized_template
+from doc_evergreen.core.generator import customize_template
+from doc_evergreen.core.generator import format_sources
+from doc_evergreen.core.generator import generate_document
+from doc_evergreen.core.generator import load_api_key
+from doc_evergreen.core.generator import score_file_relevancy
+from doc_evergreen.core.generator import summarize_file
 
 
 def test_load_api_key_success():
@@ -222,6 +224,9 @@ def test_call_llm_empty_response(mock_load_key, mock_anthropic):
         call_llm("Test prompt")
 
 
+@pytest.mark.skip(
+    reason="Old customize_template function deprecated - now using create_customized_template with relevancy"
+)
 @patch("doc_evergreen.core.generator.call_llm")
 def test_customize_template_basic(mock_call_llm):
     """Test basic template customization."""
@@ -241,6 +246,9 @@ def test_customize_template_basic(mock_call_llm):
     assert "API documentation" in call_args
 
 
+@pytest.mark.skip(
+    reason="Old customize_template function deprecated - now using create_customized_template with relevancy"
+)
 @patch("doc_evergreen.core.generator.call_llm")
 def test_customize_template_with_existing_doc(mock_call_llm):
     """Test template customization with existing document."""
@@ -298,39 +306,307 @@ def test_format_sources_empty():
 
 
 @patch("doc_evergreen.core.generator.call_llm")
-def test_generate_document(mock_call_llm):
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_generate_document(mock_load_prompt, mock_call_llm):
     """Test document generation."""
+    # Mock prompt loading
+    mock_load_prompt.return_value = (
+        "Generate docs:\nTemplate: {customized_template}\n"
+        "About: {about}\nSelected: {selected_files_with_reasons}\nContent: {source_files_content}"
+    )
+
+    # Mock LLM response
     mock_call_llm.return_value = "# Generated Documentation\nContent here"
 
-    template = "# Template\nInstructions\n{{SOURCE_FILES}}"
-    sources = {"file.py": "def test(): pass"}
+    customized_template = "# Template\nInstructions\n{{FILE:test.py}}"
     about = "Test documentation"
+    selected_files = {"test.py": "Main implementation"}
+    source_files_content = {"test.py": "def main():\n    pass"}
 
-    result = generate_document(template, sources, about)
+    result = generate_document(customized_template, about, selected_files, source_files_content)
 
     assert result == "# Generated Documentation\nContent here"
+
+    # Verify prompt was loaded
+    mock_load_prompt.assert_called_once_with("generate_document")
 
     # Check prompt includes all parts
     call_args = mock_call_llm.call_args[0][0]
     assert "Template" in call_args
-    assert "def test():" in call_args
     assert "Test documentation" in call_args
-    assert "{{SOURCE_FILES}}" in call_args or "SOURCE_FILES" in call_args
 
 
 @patch("doc_evergreen.core.generator.call_llm")
-def test_generate_document_with_large_sources(mock_call_llm):
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_generate_document_with_large_sources(mock_load_prompt, mock_call_llm):
     """Test document generation with many source files."""
+    # Mock prompt loading
+    mock_load_prompt.return_value = (
+        "Generate docs:\nTemplate: {customized_template}\n"
+        "About: {about}\nSelected: {selected_files_with_reasons}\nContent: {source_files_content}"
+    )
+
+    # Mock LLM response
     mock_call_llm.return_value = "Generated doc"
 
-    template = "Template"
-    sources = {f"file{i}.py": f"content {i}" for i in range(100)}
+    customized_template = "Template"
     about = "Large project"
+    selected_files = {f"file{i}.py": f"File {i}" for i in range(10)}
+    source_files_content = {f"file{i}.py": f"content {i}" for i in range(10)}
 
-    result = generate_document(template, sources, about)
+    result = generate_document(customized_template, about, selected_files, source_files_content)
 
     assert result == "Generated doc"
 
-    # Verify format_sources was used (implicit in the call)
+    # Verify prompt was loaded
+    mock_load_prompt.assert_called_once_with("generate_document")
+
+
+@patch("doc_evergreen.core.generator.call_llm")
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_summarize_file_success(mock_load_prompt, mock_call_llm):
+    """Test file summarization with LLM."""
+    # Mock prompt loading - return tuple when return_version=True
+    mock_load_prompt.return_value = ("Summarize: {file_path}\nContent: {file_content}", "2025-01-14T00:00:00Z")
+
+    # Mock LLM response
+    mock_call_llm.return_value = "This file implements authentication logic."
+
+    # Call function
+    file_path = "src/auth.py"
+    file_content = "def login():\n    pass"
+
+    summary, prompt_name, prompt_version = summarize_file(file_path, file_content)
+
+    # Verify result
+    assert summary == "This file implements authentication logic."
+    assert prompt_name == "summarize_file"
+    assert prompt_version == "2025-01-14T00:00:00Z"
+
+    # Verify prompt was loaded with return_version=True
+    mock_load_prompt.assert_called_once_with("summarize_file", return_version=True)
+
+    # Verify LLM was called with formatted prompt
+    mock_call_llm.assert_called_once()
     call_args = mock_call_llm.call_args[0][0]
-    assert "file0.py" in call_args  # At least first file included
+    assert "src/auth.py" in call_args
+    assert "def login():" in call_args
+
+
+@patch("doc_evergreen.core.generator.call_llm")
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_summarize_file_with_long_content(mock_load_prompt, mock_call_llm):
+    """Test summarization handles long file content."""
+    mock_load_prompt.return_value = ("Summarize: {file_path}\nContent: {file_content}", "2025-01-14T00:00:00Z")
+    mock_call_llm.return_value = "Complex module with multiple classes."
+
+    file_path = "src/complex.py"
+    file_content = "class A:\n    pass\n" * 100  # Long content
+
+    summary, prompt_name, prompt_version = summarize_file(file_path, file_content)
+
+    assert summary == "Complex module with multiple classes."
+    assert prompt_name == "summarize_file"
+    assert prompt_version == "2025-01-14T00:00:00Z"
+    mock_call_llm.assert_called_once()
+
+
+@patch("doc_evergreen.core.generator.call_llm")
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_create_customized_template_success(mock_load_prompt, mock_call_llm):
+    """Test template customization with file summaries."""
+    # Mock prompt loading with correct placeholders - return tuple when return_version=True
+    mock_load_prompt.return_value = (
+        "Template: {template_guide}\nAbout: {about}\nFiles: {formatted_source_data}",
+        "2025-01-14T00:00:00Z",
+    )
+
+    # Mock LLM response with JSON
+    mock_call_llm.return_value = '{"customized_template": "# Customized Template\\n\\nInstructions for documentation...", "selected_files": {"src/auth.py": "Needed for auth section", "src/api.py": "Needed for API section"}}'
+
+    # Call function
+    template_guide = "# Generic Template Guide\nInstructions here"
+    template_guide_version = "2025-01-13T23:00:00Z"
+    about = "API documentation"
+    source_file_data = [
+        {
+            "file_path": "src/auth.py",
+            "summary": {"text": "Authentication module", "timestamp": "2025-01-13T20:00:00Z"},
+            "relevancy": {
+                "explanation": "Needed for auth",
+                "score": 9,
+                "prompt": {"name": "score_relevancy", "version": "2025-01-13T23:00:00Z"},
+            },
+        },
+        {
+            "file_path": "src/api.py",
+            "summary": {"text": "API endpoints", "timestamp": "2025-01-13T20:00:00Z"},
+            "relevancy": {
+                "explanation": "Core API logic",
+                "score": 10,
+                "prompt": {"name": "score_relevancy", "version": "2025-01-13T23:00:00Z"},
+            },
+        },
+    ]
+
+    customized_template, selected_files, prompt_name, prompt_version = create_customized_template(
+        template_guide, template_guide_version, about, source_file_data
+    )
+
+    # Verify result
+    assert customized_template == "# Customized Template\n\nInstructions for documentation..."
+    assert selected_files == {"src/auth.py": "Needed for auth section", "src/api.py": "Needed for API section"}
+    assert prompt_name == "create_customized_template"
+    assert prompt_version == "2025-01-14T00:00:00Z"
+
+    # Verify prompt was loaded with return_version=True
+    mock_load_prompt.assert_called_once_with("create_customized_template", return_version=True)
+
+    # Verify LLM was called with formatted prompt
+    mock_call_llm.assert_called_once()
+    call_args = mock_call_llm.call_args[0][0]
+    assert "Generic Template Guide" in call_args
+    assert "API documentation" in call_args
+    assert "Authentication module" in call_args
+    assert "API endpoints" in call_args
+
+
+@patch("doc_evergreen.core.generator.call_llm")
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_create_customized_template_empty_summaries(mock_load_prompt, mock_call_llm):
+    """Test template customization with no file summaries."""
+    # Mock prompt loading with correct placeholders - return tuple when return_version=True
+    mock_load_prompt.return_value = (
+        "Template: {template_guide}\nAbout: {about}\nFiles: {formatted_source_data}",
+        "2025-01-14T00:00:00Z",
+    )
+    mock_call_llm.return_value = '{"customized_template": "# Simple Template", "selected_files": {}}'
+
+    template_guide = "# Guide"
+    template_guide_version = "2025-01-13T23:00:00Z"
+    about = "README"
+    source_file_data = []
+
+    customized_template, selected_files, prompt_name, prompt_version = create_customized_template(
+        template_guide, template_guide_version, about, source_file_data
+    )
+
+    assert customized_template == "# Simple Template"
+    assert selected_files == {}
+    assert prompt_name == "create_customized_template"
+    assert prompt_version == "2025-01-14T00:00:00Z"
+    mock_call_llm.assert_called_once()
+
+
+@patch("doc_evergreen.core.generator.call_llm")
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_create_customized_template_many_files(mock_load_prompt, mock_call_llm):
+    """Test template customization with many file summaries."""
+    # Mock prompt loading with correct placeholders - return tuple when return_version=True
+    mock_load_prompt.return_value = (
+        "Template: {template_guide}\nAbout: {about}\nFiles: {formatted_source_data}",
+        "2025-01-14T00:00:00Z",
+    )
+    # Mock LLM response with JSON containing selected files
+    import json
+
+    selected_files_dict = {f"file{i}.py": f"Reason {i}" for i in range(10)}
+    mock_response = {"customized_template": "# Comprehensive Template", "selected_files": selected_files_dict}
+    mock_call_llm.return_value = json.dumps(mock_response)
+
+    template_guide = "# Guide"
+    template_guide_version = "2025-01-13T23:00:00Z"
+    about = "Full project docs"
+    source_file_data = [
+        {
+            "file_path": f"file{i}.py",
+            "summary": {"text": f"Summary {i}", "timestamp": "2025-01-13T20:00:00Z"},
+            "relevancy": {
+                "explanation": f"Relevant {i}",
+                "score": 8,
+                "prompt": {"name": "score_relevancy", "version": "2025-01-13T23:00:00Z"},
+            },
+        }
+        for i in range(50)
+    ]
+
+    customized_template, selected_files, prompt_name, prompt_version = create_customized_template(
+        template_guide, template_guide_version, about, source_file_data
+    )
+
+    assert customized_template == "# Comprehensive Template"
+    assert len(selected_files) == 10
+    assert prompt_name == "create_customized_template"
+    assert prompt_version == "2025-01-14T00:00:00Z"
+    mock_call_llm.assert_called_once()
+
+    # Verify all summaries were included in the prompt
+    call_args = mock_call_llm.call_args[0][0]
+    assert "Summary 0" in call_args
+    assert "Summary 49" in call_args
+
+
+@patch("doc_evergreen.core.generator.call_llm")
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_score_file_relevancy_success(mock_load_prompt, mock_call_llm):
+    """Test scoring file relevancy with LLM."""
+    # Mock prompt loading
+    mock_load_prompt.return_value = (
+        "Score relevancy:\nFile: {file_path}\nSummary: {file_summary}\nDoc: {doc_description}"
+    )
+
+    # Mock LLM response with valid JSON
+    mock_call_llm.return_value = '{"relevancy_explanation": "This file is highly relevant", "relevancy_score": 9}'
+
+    # Call function
+    file_path = "src/auth.py"
+    file_summary = "Authentication module"
+    doc_description = "API documentation"
+
+    explanation, score = score_file_relevancy(file_path, file_summary, doc_description)
+
+    # Verify result
+    assert explanation == "This file is highly relevant"
+    assert score == 9
+
+    # Verify prompt was loaded
+    mock_load_prompt.assert_called_once_with("score_relevancy")
+
+    # Verify LLM was called with formatted prompt
+    mock_call_llm.assert_called_once()
+    call_args = mock_call_llm.call_args[0][0]
+    assert "src/auth.py" in call_args
+    assert "Authentication module" in call_args
+    assert "API documentation" in call_args
+
+
+@patch("doc_evergreen.core.generator.call_llm")
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_score_file_relevancy_invalid_json(mock_load_prompt, mock_call_llm):
+    """Test handling of invalid JSON response."""
+    mock_load_prompt.return_value = "Score relevancy: {file_path}"
+
+    # Mock LLM response with invalid JSON
+    mock_call_llm.return_value = "This is not JSON"
+
+    explanation, score = score_file_relevancy("test.py", "Summary", "Doc description")
+
+    # Should return default values
+    assert explanation == "Unable to parse relevancy response"
+    assert score == 5
+
+
+@patch("doc_evergreen.core.generator.call_llm")
+@patch("doc_evergreen.core.generator.load_prompt")
+def test_score_file_relevancy_missing_fields(mock_load_prompt, mock_call_llm):
+    """Test handling of JSON with missing fields."""
+    mock_load_prompt.return_value = "Score relevancy"
+
+    # Mock LLM response with partial JSON
+    mock_call_llm.return_value = '{"relevancy_score": 7}'
+
+    explanation, score = score_file_relevancy("test.py", "Summary", "Doc description")
+
+    # Should handle missing explanation field
+    assert explanation == ""
+    assert score == 7

@@ -129,7 +129,9 @@ help: ## Show ALL available commands
 	@echo "  make blog-resume       Resume most recent blog writing session"
 	@echo ""
 	@echo "DOCUMENTATION GENERATION:"
-	@echo "  make doc-create ABOUT=\"...\" OUTPUT=<path> [SOURCES=\"...\"]  Generate new docs"
+	@echo "  make doc-create ABOUT=\"...\" OUTPUT=<path> [SOURCES=\"pattern1 pattern2\"] [START_STEP=N]  Generate new docs"
+	@echo "    Example: make doc-create ABOUT=\"API docs\" OUTPUT=API.md SOURCES=\"**/*.md **/*.py\""
+	@echo "    Example: make doc-create ABOUT=\"API docs\" OUTPUT=API.md START_STEP=4  # Skip to step 4"
 	@echo "  make doc-regenerate DOC=<path>  Regenerate specific document"
 	@echo "  make doc-regenerate ALL=true    Regenerate all documents"
 	@echo ""
@@ -677,7 +679,7 @@ dot-to-mermaid: ## Convert DOT files to Mermaid format. Usage: make dot-to-merma
 	uv run python -m ai_working.dot_to_mermaid.cli "$(INPUT)" --session-file "$$SESSION_DIR/session.json"
 
 # Documentation Generation (doc-evergreen)
-doc-create: ## Create new documentation with LLM-guided discovery. Usage: make doc-create ABOUT="description" OUTPUT=path [SOURCES="pattern1 pattern2"]
+doc-create: ## Create new documentation with LLM-guided discovery. Usage: make doc-create ABOUT="description" OUTPUT=path [SOURCES="pattern1 pattern2"] [START_STEP=N]
 	@if [ -z "$(ABOUT)" ]; then \
 		echo "Error: Please provide an ABOUT description. Usage: make doc-create ABOUT=\"description\" OUTPUT=path"; \
 		exit 1; \
@@ -687,16 +689,16 @@ doc-create: ## Create new documentation with LLM-guided discovery. Usage: make d
 		exit 1; \
 	fi
 	@cd $(repo_root) && \
+	CMD="scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create --about \"$(ABOUT)\" --output \"$(OUTPUT)\""; \
 	if [ -n "$(SOURCES)" ]; then \
-		scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
-			--about "$(ABOUT)" \
-			--output "$(OUTPUT)" \
-			--sources $(SOURCES); \
-	else \
-		scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
-			--about "$(ABOUT)" \
-			--output "$(OUTPUT)"; \
-	fi
+		for pattern in $(SOURCES); do \
+			CMD="$$CMD --sources \"$$pattern\""; \
+		done; \
+	fi; \
+	if [ -n "$(START_STEP)" ]; then \
+		CMD="$$CMD --start-step $(START_STEP)"; \
+	fi; \
+	eval $$CMD
 
 doc-regenerate: ## Regenerate existing documentation. Usage: make doc-regenerate DOC=path OR make doc-regenerate ALL=true
 	@cd $(repo_root) && \

@@ -1,0 +1,8 @@
+{
+  "versions": [
+    {
+      "version": "2025-01-13T19:00:00.000000+00:00",
+      "prompt": "Analyze this source file and provide a concise summary of what it does and what it contains.\n\nFile: {file_path}\n\nContent:\n{file_content}\n\nProvide a concise summary that captures the KEY INFORMATION from this resource. Consider the following ONLY if relevant:\n1. What this file's primary purpose is\n2. Key functionality or components it contains\n3. How it fits into the larger system (if discernible)\nIMPORTANT: Do NOT invent details or speculate beyond what is present in the file content.\n\nReturn ONLY the summary text, no preamble or formatting.\n"
+    }
+  ]
+}

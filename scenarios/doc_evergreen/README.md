@@ -11,7 +11,6 @@ doc-evergreen solves the documentation maintenance problem:
 1. **Generate** - Creates comprehensive documentation from your source files using AI
 2. **Maintain** - Regenerates docs when code changes, preserving quality
 3. **Version** - Tracks all changes with automatic backup and history
-4. **Customize** - Adapts built-in templates to your project's style
 
 ## Quick Start
 
@@ -46,26 +45,17 @@ uv run python -m doc_evergreen.cli regenerate README.md
 uv run python -m doc_evergreen.cli regenerate --all
 ```
 
-**Preview changes (dry run):**
-```bash
-uv run python -m doc_evergreen.cli create \
-    --about "API documentation" \
-    --output docs/API.md \
-    --dry-run
-```
-
 ## How It Works
 
 ### The Create Command
 
-Generates documentation through a 6-step process:
+Generates documentation through a 5-step process:
 
 1. **File Discovery** - Finds source files matching patterns (respects .gitignore)
-2. **Template Selection** - Chooses and customizes appropriate template
+2. **Load Template** - Loads the built-in README template
 3. **Document Generation** - Uses LLM to generate content from sources
-4. **Backup** - Saves existing document to `.doc-evergreen/versions/`
-5. **Save** - Writes generated documentation
-6. **History** - Updates `.doc-evergreen/history.yaml` with configuration
+4. **Backup** - Saves existing document to `.doc-evergreen/versions/` (if exists)
+5. **Save & History** - Writes generated documentation and updates `.doc-evergreen/history.yaml`
 
 ### The Regenerate Command
 
@@ -73,7 +63,7 @@ Rebuilds documentation from saved configuration:
 
 1. **Load History** - Reads configuration from history.yaml
 2. **Gather Sources** - Finds files matching saved patterns
-3. **Load Template** - Uses customized or built-in template
+3. **Load Template** - Loads the built-in README template
 4. **Generate** - Creates updated documentation
 5. **Backup & Save** - Preserves old version, writes new one
 6. **Update History** - Adds version entry
@@ -90,7 +80,7 @@ docs:
     path: README.md
     template_used:
       name: readme
-      path: .doc-evergreen/templates/readme.v1.md
+      path: ""
     sources:
       - "src/**/*.py"
       - "pyproject.toml"
@@ -100,7 +90,7 @@ docs:
         backup_path: .doc-evergreen/versions/README.md.2025-01-07T10-30-00.bak
         template_used:
           name: readme
-          path: .doc-evergreen/templates/readme.v1.md
+          path: ""
 ```
 
 ## Command Reference
@@ -121,48 +111,72 @@ doc-evergreen create --about DESCRIPTION --output PATH [OPTIONS]
 - `--sources PATTERN` - Glob patterns for source files (repeatable)
   - If omitted, auto-discovers based on `--about`
   - Examples: `"src/**/*.py"`, `"*.md"`, `"api/**/*.ts"`
-- `--template NAME` - Built-in template to use
-  - Choices: `readme`, `api-reference`, `user-guide`, `developer-guide`
-  - If omitted, auto-selects based on `--about`
-- `--dry-run` - Preview without writing files
+  - **Can be specified multiple times** to include different file types
+  - Use `**` for recursive matching (e.g., `**/*.md` finds all markdown files)
 
 **Examples:**
 
 ```bash
-# Auto-discover sources and template
+# Auto-discover sources
 doc-evergreen create \
     --about "API documentation" \
     --output docs/API.md
 
-# Explicit sources and template
+# Explicit sources
 doc-evergreen create \
     --about "Developer guide for authentication" \
     --output docs/DEVELOPER.md \
-    --sources "src/auth/**/*.py" \
-    --template developer-guide
+    --sources "src/auth/**/*.py"
 
 # Multiple source patterns
 doc-evergreen create \
     --about "Contributing guide" \
     --output CONTRIBUTING.md \
-    --sources "CONTRIBUTING.md" ".github/**/*.md" \
-    --template developer-guide
+    --sources "CONTRIBUTING.md" \
+    --sources ".github/**/*.md"
+
+# Include all markdown and Python files
+doc-evergreen create \
+    --about "Project README covering architecture and implementation" \
+    --output README.md \
+    --sources "**/*.md" \
+    --sources "**/*.py"
 ```
+
+### Using with Make
+
+When using the Makefile wrapper, pass multiple patterns in a single SOURCES argument separated by spaces:
+
+```bash
+# Single pattern via make
+make doc-create ABOUT="API documentation" OUTPUT=docs/API.md SOURCES="src/**/*.py"
+
+# Multiple patterns via make (space-separated in quotes)
+make doc-create \
+    ABOUT="Project README" \
+    OUTPUT=README.md \
+    SOURCES="**/*.md **/*.py"
+
+# Mix exact files and patterns
+make doc-create \
+    ABOUT="Configuration guide" \
+    OUTPUT=docs/CONFIG.md \
+    SOURCES="pyproject.toml **/*.toml **/*.yaml"
+```
+
+**Note**: The Makefile automatically converts space-separated patterns into multiple `--sources` flags for the CLI.
 
 ### regenerate
 
 Regenerate documentation from saved configuration.
 
 ```bash
-doc-evergreen regenerate [DOC_PATH | --all] [OPTIONS]
+doc-evergreen regenerate [DOC_PATH | --all]
 ```
 
 **Arguments:**
 - `DOC_PATH` - Specific document to regenerate (e.g., `README.md`)
 - `--all` - Regenerate all configured documents
-
-**Options:**
-- `--dry-run` - Preview what would be regenerated
 
 **Examples:**
 
@@ -172,30 +186,7 @@ doc-evergreen regenerate README.md
 
 # Regenerate all documents
 doc-evergreen regenerate --all
-
-# Preview regeneration
-doc-evergreen regenerate --all --dry-run
 ```
-
-## Built-in Templates
-
-Four templates included:
-
-1. **readme** - Project overview, installation, usage
-2. **api-reference** - API documentation with endpoints/methods
-3. **user-guide** - Tutorial-style user documentation
-4. **developer-guide** - Technical reference for developers
-
-Templates are automatically customized for your project using LLM analysis.
-
-### Template Customization
-
-Templates are customized in two ways:
-
-1. **Initial Customization** - Analyzes your project and adapts template structure
-2. **Style Matching** - If document exists, matches existing writing style
-
-Customized templates are saved to `.doc-evergreen/templates/` with version numbers.
 
 ## File Organization
 
@@ -203,9 +194,6 @@ Customized templates are saved to `.doc-evergreen/templates/` with version numbe
 your-project/
 ├── .doc-evergreen/              # Configuration and backups
 │   ├── history.yaml             # Document configuration (committed)
-│   ├── templates/               # Customized templates (committed)
-│   │   ├── readme.v1.md
-│   │   └── readme.v2.md
 │   └── versions/                # Document backups (committed)
 │       ├── README.md.2025-01-07T10-30-00.bak
 │       └── README.md.2025-01-08T14-15-30.bak
@@ -235,26 +223,13 @@ The tool searches up the directory tree from current working directory for `.cla
 
 ## Auto-Discovery
 
-When you don't specify `--sources` or `--template`, the tool makes intelligent choices:
-
-### Source Pattern Discovery
-
-Based on `--about` keywords:
+When you don't specify `--sources`, the tool intelligently discovers relevant files based on `--about` keywords:
 
 - "api" → `src/**/*.py`, `api/**/*.py`
 - "cli" → `src/cli/**/*.py`, `src/commands/**/*.py`
 - "readme" → `README.md`, `src/**/*.py`, `pyproject.toml`
 - "contributing" → `CONTRIBUTING.md`, `.github/**/*.md`
 - "user guide" → `README.md`, `docs/**/*.md`, `examples/**/*`
-
-### Template Selection
-
-Based on `--about` keywords:
-
-- "readme", "overview" → `readme`
-- "api", "reference", "endpoints" → `api-reference`
-- "contributing", "developer", "development" → `developer-guide`
-- "user", "guide", "tutorial", "how to" → `user-guide`
 
 ## LLM Configuration
 
@@ -275,7 +250,6 @@ The tool handles common scenarios:
 - **Invalid UTF-8** - Skips files that can't be read as text
 - **API errors** - Retries with exponential backoff (max 3 attempts)
 - **Missing API key** - Helpful message with setup instructions
-- **No template info** - Graceful skip with warning
 
 ## Development
 
@@ -325,11 +299,7 @@ uv run pyright .
    - Old versions automatically backed up
    - Full version history preserved
 
-3. **Template evolution tracking**
-   - Automatic version incrementing
-   - Track customizations and changes
-
-4. **History committed to git**
+3. **History committed to git**
    - Team shares configuration
    - Reproducible documentation builds
 
@@ -362,8 +332,8 @@ ls src/**/*.py  # Does this match files?
 # Check .gitignore isn't excluding them
 git check-ignore -v src/file.py
 
-# Use --dry-run to see what would be found
-doc-evergreen create --about "test" --output test.md --dry-run
+# Try specifying sources explicitly
+doc-evergreen create --about "test" --output test.md --sources "src/**/*.py"
 ```
 
 ### "Rate limit exceeded"

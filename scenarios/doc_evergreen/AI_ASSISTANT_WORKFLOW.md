@@ -9,12 +9,14 @@ This guide explains how to help users use doc-evergreen effectively through conv
 **BEFORE using this tool:**
 
 1. **Working Directory**: You MUST be in the repository root directory
+
    - The tool automatically detects git root and creates `.doc-evergreen/` there
    - If running from a subdirectory, it will warn and ask for confirmation
    - ✅ Run from: `/path/to/repo` (git root)
    - ❌ Don't run from: `/path/to/repo/scenarios/doc_evergreen`
 
 2. **Run from Repository Root**: Must execute from the repository root directory
+
    ```bash
    # Ensure you're in repository root
    cd /path/to/repo
@@ -26,6 +28,7 @@ This guide explains how to help users use doc-evergreen effectively through conv
    ```
 
 3. **API Key**: Anthropic API key must be configured
+
    - File: `.claude/api_key.txt` (in repo root or parent directories)
    - Env var: `ANTHROPIC_API_KEY`
 
@@ -71,6 +74,7 @@ Suggest doc-evergreen when users:
 ```
 
 **Examples of good `--about` descriptions:**
+
 - "Main project README covering installation, usage, and features"
 - "API reference documenting all REST endpoints and authentication"
 - "Developer guide for setting up local environment and contributing"
@@ -90,6 +94,7 @@ This usually works better than manual patterns because it adapts to your project
 ```
 
 **Alternative: Explicit sources (For specific needs only)**
+
 ```
 "If you need precise control, you can specify:
 
@@ -110,6 +115,7 @@ But LLM-guided discovery is usually smarter and finds files you might miss."
 ```
 
 **How LLM-guided discovery works:**
+
 1. Starts at repository root
 2. LLM sees file names + content previews (first 500 chars)
 3. LLM selects relevant files and directories to explore
@@ -119,6 +125,7 @@ But LLM-guided discovery is usually smarter and finds files you might miss."
 ### Step 3: Determine Output Path
 
 **Ask:**
+
 ```
 "Where should I save the generated documentation?
 
@@ -130,6 +137,7 @@ Common patterns:
 ```
 
 **Validation:**
+
 - Path must include filename with extension
 - Common extensions: .md, .txt, .rst
 - Warn if unusual extension
@@ -139,6 +147,7 @@ Common patterns:
 **Most users don't need to specify - auto-selection works well.**
 
 If user asks about templates:
+
 ```
 "doc-evergreen will automatically choose the best template.
 
@@ -174,12 +183,12 @@ scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
 scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli create \
     --about "Main project README" \
     --output README.md \
-    --dry-run
 ```
 
 ### Step 6: Handle Results
 
 **On success:**
+
 ```
 "Documentation generated successfully!
 
@@ -192,6 +201,7 @@ You can regenerate this document anytime with:
 ```
 
 **On error:**
+
 - Check error message and guide user to fix
 - Common issues: missing API key, no source files, invalid UTF-8
 
@@ -200,6 +210,7 @@ You can regenerate this document anytime with:
 ### Step 1: Check What's Configured
 
 **Show available documents:**
+
 ```bash
 # Look at history.yaml
 cat .doc-evergreen/history.yaml
@@ -267,6 +278,7 @@ and the tool can find it automatically."
 ```
 
 **After setup:**
+
 ```bash
 # Test if key is found
 uv run python -m doc_evergreen.cli create \
@@ -282,6 +294,7 @@ uv run python -m doc_evergreen.cli create \
 **User:** "I want to create a README for my project"
 
 **Assistant:**
+
 ```
 "I'll help you create a README using doc-evergreen.
 
@@ -291,6 +304,7 @@ What should the README cover? Give me 1-2 sentences about your project."
 **User:** "It's a Python CLI tool for analyzing code complexity"
 
 **Assistant:**
+
 ```
 "Great! I'll use LLM-guided discovery to intelligently find relevant files.
 
@@ -320,6 +334,7 @@ Watch the output - it shows exactly which files the LLM selected and why."
 **User:** "I updated my API, need to regenerate the API docs"
 
 **Assistant:**
+
 ```
 "I'll regenerate your API documentation from the saved configuration.
 
@@ -348,6 +363,7 @@ make doc-regenerate DOC=docs/API.md
 **User:** "I need README, API docs, and a contributing guide"
 
 **Assistant:**
+
 ```
 "I'll help you create all three documents. Let's do them one at a time.
 
@@ -358,6 +374,7 @@ What should it cover?"
 **User:** "Project overview, installation, and basic usage"
 
 **Assistant:**
+
 ```
 "Perfect. Creating README first..."
 ```
@@ -408,11 +425,13 @@ You can regenerate all at once later with:
 ### Issue: "No source files found"
 
 **Check:**
+
 1. Are the glob patterns correct? Test with `ls pattern`
 2. Are files being excluded by .gitignore? Check `git check-ignore -v file`
 3. Try using auto-discovery instead of explicit patterns
 
 **Help user fix:**
+
 ```
 "Let me check what files exist:
   ls -la src/**/*.py
@@ -426,6 +445,7 @@ The pattern didn't match any files. Try:
 ### Issue: "Rate limit exceeded"
 
 **Explain:**
+
 ```
 "The Anthropic API has rate limits. doc-evergreen will automatically retry
 with exponential backoff.
@@ -439,6 +459,7 @@ If it keeps failing:
 ### Issue: "Invalid UTF-8"
 
 **Explain:**
+
 ```
 "Some source files aren't valid UTF-8 text (might be binary files).
 
@@ -455,6 +476,7 @@ Try excluding those patterns from --sources"
 ### Issue: Generation takes too long
 
 **Explain:**
+
 ```
 "LLM generation typically takes 30-60 seconds per document.
 
@@ -506,6 +528,7 @@ make doc-regenerate ALL=true
 ### Alternative: Direct CLI Commands
 
 **Prerequisites:**
+
 - Must run from repository root: `cd /path/to/repo`
 - Tool path: `scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli`
 
@@ -545,6 +568,7 @@ scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate --all
 ### 1. Always Start with Questions
 
 Don't assume what the user wants. Ask:
+
 - What type of documentation?
 - What should it cover?
 - Where to save it?
@@ -560,6 +584,7 @@ Generation takes 30-60 seconds. Set expectations upfront.
 ### 4. Show the Command
 
 Always show the exact command you're running so users can:
+
 - Learn the syntax
 - Modify it themselves later
 - Understand what's happening
@@ -571,6 +596,7 @@ Before regenerating, check `.doc-evergreen/history.yaml` to show what's configur
 ### 6. Handle Errors Gracefully
 
 When errors occur:
+
 - Read the error message carefully
 - Explain in simple terms what went wrong
 - Provide specific fix steps
@@ -579,6 +605,7 @@ When errors occur:
 ### 7. Teach as You Go
 
 Use comments in commands:
+
 ```bash
 # Generate README with auto-discovered sources
 uv run python -m doc_evergreen.cli create \
@@ -589,6 +616,7 @@ uv run python -m doc_evergreen.cli create \
 ### 8. Track What's Been Created
 
 After creating documents, remind users:
+
 ```
 "You now have:
 - README.md (generated)
@@ -601,25 +629,32 @@ Regenerate anytime with: doc-evergreen regenerate README.md"
 ## Common User Goals and Responses
 
 ### "I need a README"
+
 → Use auto-discovery, ask about project description
 
 ### "My docs are outdated"
+
 → Use regenerate command
 
 ### "I changed my API"
+
 → Regenerate API.md specifically
 
 ### "I need multiple docs"
+
 → Create one at a time, then mention regenerate --all
 
 ### "How do I customize the template?"
+
 → Templates are auto-customized, but saved to .doc-evergreen/templates/ for manual editing
 
 ### "Can I edit the generated docs?"
+
 → Yes, but they'll be overwritten on regeneration. Either:
-  1. Edit and don't regenerate
-  2. Edit the template in .doc-evergreen/templates/
-  3. Use additional manual docs alongside generated ones
+
+1. Edit and don't regenerate
+2. Edit the template in .doc-evergreen/templates/
+3. Use additional manual docs alongside generated ones
 
 ## Success Criteria
 
@@ -643,6 +678,7 @@ A successful interaction results in:
 ## Quick Reference
 
 **User wants to create docs:**
+
 1. Ask what type and what to cover (--about)
 2. Ask where to save (--output)
 3. Offer auto-discovery or manual --sources
@@ -650,18 +686,21 @@ A successful interaction results in:
 5. Run actual command after confirmation
 
 **User wants to update docs:**
+
 1. Check .doc-evergreen/history.yaml
 2. Show configured documents
 3. Run regenerate for specific or --all
 4. Explain backup and versioning
 
 **User hits an error:**
+
 1. Read error message carefully
 2. Check common issues (API key, source files, UTF-8)
 3. Provide specific fix steps
 4. Retry after fix
 
 **User is confused:**
+
 1. Show README.md examples
 2. Explain the 6-step generation process
 3. Start with simplest case (auto-discovery)

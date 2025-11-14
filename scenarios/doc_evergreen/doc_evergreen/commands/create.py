@@ -4,24 +4,26 @@ Create command implementation.
 Handles creation of new documentation from source files.
 """
 
+import json
+from datetime import datetime
 from pathlib import Path
 
 import click
 
-from doc_evergreen.core.discovery import auto_discover_files, format_file_size, gather_files
-from doc_evergreen.core.doc_logger import close_logger, init_logger
-from doc_evergreen.core.generator import (
-    customize_template,
-    decide_if_customization_needed,
-    generate_document_with_mapping,
-)
-from doc_evergreen.core.history import add_doc_entry, add_version_entry, load_history
-from doc_evergreen.core.source_mapping import map_sources_to_sections, save_source_map
-from doc_evergreen.core.template import (
-    load_builtin_template,
-    save_template,
-)
-from doc_evergreen.core.versioning import backup_document
+from doc_evergreen.core.discovery import format_file_size
+from doc_evergreen.core.discovery import gather_files
+from doc_evergreen.core.doc_logger import close_logger
+from doc_evergreen.core.doc_logger import init_logger
+from doc_evergreen.core.generator import create_customized_template
+from doc_evergreen.core.generator import generate_document
+from doc_evergreen.core.generator import score_file_relevancy
+from doc_evergreen.core.generator import summarize_file
+from doc_evergreen.core.project import backup_existing_document
+from doc_evergreen.core.project import save_customized_template
+from doc_evergreen.core.summaries import add_summary
+from doc_evergreen.core.summaries import get_summary
+from doc_evergreen.core.template import load_template_guide
+from doc_evergreen.prompts import get_prompt_version
 
 
 def find_git_root(start_path: Path) -> Path | None:
@@ -54,9 +56,7 @@ def execute_create(
     about: str,
     output: Path,
     sources: list[str] | None,
-    template: str | None,
-    should_customize_template: bool | None,
-    dry_run: bool,
+    start_step: int = 1,
 ) -> None:
     """
     Execute the create command.
@@ -65,13 +65,15 @@ def execute_create(
         about: Description of what the documentation should cover
         output: Path where the document should be saved
         sources: List of glob patterns for source files, or None for auto-discovery
-        template: Specific template to use, or None for auto-selection
-        should_customize_template: Whether to customize template (None=auto-decide based on whether template was specified)
-        dry_run: If True, show what would be done without writing files
+        start_step: Step to start from (1-5). Uses existing data from previous runs.
+                   Steps: 1=Discovery, 2=Summarization, 3=Relevancy, 4=Template, 5=Generation
     """
     # Validate parameters
     if not about.strip():
         raise ValueError("--about cannot be empty")
+
+    if start_step not in range(1, 6):
+        raise ValueError(f"--start-step must be between 1 and 5, got {start_step}")
 
     # Ensure output has a valid extension
     if not output.suffix:
@@ -110,8 +112,7 @@ def execute_create(
             click.echo("", err=True)
 
             # Ask for confirmation
-            if not dry_run:
-                click.confirm("Continue with git root as repo path?", abort=True, err=True)
+            click.confirm("Continue with git root as repo path?", abort=True, err=True)
 
     # Initialize logger
     log_dir = repo_path / ".doc-evergreen" / "logs"
@@ -124,9 +125,6 @@ def execute_create(
             "about": about,
             "output": str(output),
             "sources": sources if sources else "auto-discover",
-            "template": template if template else "auto-select",
-            "customize_template": should_customize_template,
-            "dry_run": dry_run,
             "repository_path": str(repo_path),
             "current_directory": str(Path.cwd()),
         },
@@ -146,190 +144,398 @@ def execute_create(
     click.echo(f"About: {about}")
     click.echo(f"Output: {output}")
     click.echo(f"Sources: {sources if sources else 'auto-discover'}")
-    click.echo(f"Template: {template if template else 'auto-select'}")
-    click.echo(f"Dry run: {dry_run}")
+    if start_step > 1:
+        click.echo(f"Start Step: {start_step} (skipping steps 1-{start_step - 1})")
     click.echo("=" * 60)
 
-    # Step 1: File discovery
-    click.echo("\n📁 Step 1: Discovering source files...")
+    # Determine project identifier from output path (used for all project data storage)
+    # Use full relative path with extension to ensure uniqueness and prevent conflicts
+    try:
+        relative_output = output.relative_to(repo_path)
+    except ValueError:
+        relative_output = output
 
-    # Track what sources were used for history
-    sources_for_history: list[str] = []
+    # Convert to string with forward slashes for consistency across platforms
+    doc_key = str(relative_output).replace("\\", "/")
 
-    if sources:
-        # Use provided patterns
+    # Use doc_key for all project-related directories (relevancy, templates, etc.)
+    # This ensures consistency and prevents conflicts between files with same name in different dirs
+
+    # Initialize variables that may be populated by skipped steps
+    source_files: dict[str, str] = {}
+    file_summaries: dict[str, str] = {}
+    relevancy_scores: dict[str, int] = {}
+    source_file_data: list[dict] = []
+    patterns: list[str] = []
+
+    # Step 1: File Sourcing
+    if start_step <= 1:
+        click.echo("\n📁 Step 1: File Sourcing...")
+
+        if not sources:
+            raise ValueError("--sources is required. Auto-discovery will be implemented later.")
+
+        # Use provided patterns/files
         patterns = list(sources)
-        sources_for_history = patterns
         click.echo(f"Using provided patterns: {patterns}")
+
         # Gather files using glob patterns
         source_files = gather_files(patterns, repo_path)
-    else:
-        # Auto-discover using LLM-guided intelligent discovery
-        # Returns actual file paths, not patterns
-        click.echo("Using LLM to intelligently discover relevant files...")
-        file_paths = auto_discover_files(about, repo_path, use_llm_guided=True)
-        sources_for_history = file_paths  # Store discovered paths
-        click.echo(f"\n✓ LLM discovered {len(file_paths)} relevant files")
 
-        # Show all files
-        for path in file_paths:
+        if not source_files:
+            raise ValueError("No source files found for the specified patterns")
+
+        # IMPORTANT: Filter out the output file from sources for CREATE operations
+        # We should NEVER include the output documentation as a source when creating new docs
+        try:
+            output_relative = output.relative_to(repo_path)
+            output_key = str(output_relative)
+
+            if output_key in source_files:
+                click.echo(f"\n⚠️  Filtering out output file from sources: {output_key}")
+                click.echo("   (Output file should not be used as a source for CREATE)")
+                del source_files[output_key]
+
+        except ValueError:
+            # Output is outside repo_path, can't be in source_files anyway
+            pass
+
+        # Show what was found
+        click.echo(f"\nFound {len(source_files)} source files:")
+        for path in list(source_files.keys())[:10]:  # Show first 10
             click.echo(f"  • {path}")
+        if len(source_files) > 10:
+            click.echo(f"  ... and {len(source_files) - 10} more")
 
-        # Gather files directly from discovered paths
-        source_files = gather_files(file_paths, repo_path)
-
-    if not source_files:
-        raise ValueError("No source files found for the specified topic/patterns")
-
-    # IMPORTANT: Filter out the output file from sources for CREATE operations
-    # We should NEVER include the output documentation as a source when creating new docs
-    # (Only during regeneration would this be appropriate, handled elsewhere)
-    try:
-        output_relative = output.relative_to(repo_path)
-        output_key = str(output_relative)
-
-        if output_key in source_files:
-            click.echo(f"\n⚠️  Filtering out output file from sources: {output_key}")
-            click.echo("   (Output file should not be used as a source for CREATE)")
-            del source_files[output_key]
-
-            # Also remove from sources_for_history if present
-            if output_key in sources_for_history:
-                sources_for_history.remove(output_key)
-
-    except ValueError:
-        # Output is outside repo_path, can't be in source_files anyway
-        pass
-
-    # Show what was found
-    click.echo(f"\nFound {len(source_files)} source files:")
-    for path in list(source_files.keys()):
-        click.echo(f"  • {path}")
-
-    # Estimate size
-    total_size = sum(len(content) for content in source_files.values())
-    click.echo(f"Total size: {format_file_size(total_size)}")
-
-    if dry_run:
-        click.echo("\n[DRY RUN] Would proceed with:")
-        click.echo("  2. Template selection/customization")
-        click.echo("  3. Source-to-section mapping")
-        click.echo("  4. Document generation")
-        click.echo("  5. Backup existing document (if exists)")
-        click.echo("  6. Save to output path")
-        click.echo("  7. Update history.yaml")
-        return
-
-    # Step 2: Template selection and customization
-    click.echo("\n📝 Step 2: Preparing template...")
-
-    if template:
-        # Use explicitly specified template
-        template_name = template
-        click.echo(f"Using specified template: {template_name}")
+        # Estimate size
+        total_size = sum(len(content) for content in source_files.values())
+        click.echo(f"Total size: {format_file_size(total_size)}")
     else:
-        # Use LLM to intelligently select or create appropriate template
-        from doc_evergreen.core.template import select_template_with_llm
+        # Skip Step 1: Load existing summaries to get source file list
+        click.echo("\n⏩ Skipping Step 1 (File Sourcing)")
+        click.echo("Loading source files from existing summaries...")
 
-        click.echo("Using LLM to select appropriate template...")
-        template_name = select_template_with_llm(about, repo_path)
-        click.echo(f"Selected template: {template_name}")
+        from doc_evergreen.core.summaries import get_file_summaries_dir
 
-    # Load built-in template
-    builtin_template = load_builtin_template(template_name)
+        summaries_dir = get_file_summaries_dir(repo_path)
+        if not summaries_dir.exists():
+            raise ValueError(f"No summaries directory found. Cannot skip to step {start_step}. Run from step 1 first.")
 
-    # Determine if template should be customized
-    # Three scenarios:
-    # 1. Explicit --customize-template: Always customize
-    # 2. Explicit --no-customize-template: Never customize
-    # 3. No flag (auto-decide): Ask LLM to evaluate if customization would be beneficial
+        # Load all source files that have summaries
+        summary_files = list(summaries_dir.glob("*.json"))
+        if not summary_files:
+            raise ValueError(f"No summaries found. Cannot skip to step {start_step}. Run from step 1 first.")
 
-    if should_customize_template is None:
-        # Auto-decide: Always ask LLM to evaluate customization need
-        # (regardless of whether template was user-specified or LLM-selected)
-        click.echo("Evaluating if template customization would be beneficial...")
-        try:
-            do_customize, reason = decide_if_customization_needed(builtin_template, about, source_files, template_name)
-            if do_customize:
-                click.echo(f"✓ Customization recommended: {reason}")
+        # We'll load the actual files in Step 2 when we load summaries
+        # For now, just note that we're skipping
+        click.echo(f"Found {len(summary_files)} files with existing summaries")
+
+    # Step 2: File Summarization
+    if start_step <= 2:
+        click.echo("\n📝 Step 2: Summarizing source files...")
+        click.echo("Generating summaries for each file (using LLM)...")
+        click.echo("This may take 1-2 minutes...")
+
+        files_to_summarize = list(source_files.keys())
+
+        for idx, file_path in enumerate(files_to_summarize, 1):
+            click.echo(f"  [{idx}/{len(files_to_summarize)}] Summarizing {file_path}...")
+
+            # Check if we have a cached summary
+            cached_summary = get_summary(file_path, repo_path)
+            if cached_summary:
+                click.echo(f"      ✓ Using cached summary from {cached_summary['timestamp']}")
+                file_summaries[file_path] = cached_summary["summary"]
             else:
-                click.echo(f"✓ Template sufficient as-is: {reason}")
-        except Exception as e:
-            click.echo(f"⚠ Could not decide on customization: {e}", err=True)
-            click.echo("Defaulting to: use template directly")
-            do_customize = False
+                # Generate new summary
+                file_content = source_files[file_path]
+                summary, prompt_name, prompt_version = summarize_file(file_path, file_content)
+
+                # Cache the summary with version information
+                add_summary(file_path, summary, repo_path, prompt_name, prompt_version)
+
+                file_summaries[file_path] = summary
+                click.echo("      ✓ Summary generated and cached")
+
+        click.echo(f"✓ All {len(file_summaries)} files summarized")
     else:
-        # Explicit flag provided - honor user's decision
-        do_customize = should_customize_template
-        if do_customize:
-            click.echo(f"Customizing template '{template_name}' (explicitly requested)")
-        else:
-            click.echo(f"Using template '{template_name}' directly (explicitly requested)")
+        # Skip Step 2: Load existing summaries
+        click.echo("\n⏩ Skipping Step 2 (File Summarization)")
+        click.echo("Loading existing summaries...")
 
-    # Perform customization if needed
-    if do_customize:
-        try:
-            # Pass source files to customization for context
-            customized_template = customize_template(builtin_template, about, sources=source_files, existing_doc=None)
+        from doc_evergreen.core.summaries import get_file_summaries_dir
 
-            # Save customized template
-            template_path = save_template(
-                customized_template,
-                template_name,
-                repo_path,
-                metadata={"derived_from": template_name, "customizations": ["Customized for project context"]},
+        summaries_dir = get_file_summaries_dir(repo_path)
+        summary_files = list(summaries_dir.glob("*.json"))
+
+        for summary_file in summary_files:
+            # Load the summary data
+            with open(summary_file, encoding="utf-8") as f:
+                data = json.load(f)
+
+            if "versions" in data and data["versions"]:
+                file_path = data["file_path"]
+                latest_version = sorted(data["versions"], key=lambda v: v["timestamp"], reverse=True)[0]
+                file_summaries[file_path] = latest_version["summary"]
+
+        click.echo(f"Loaded {len(file_summaries)} existing summaries")
+
+    # Step 3: Score Relevancy
+    if start_step <= 3:
+        click.echo("\n🎯 Step 3: Scoring file relevancy...")
+        click.echo("Determining which source files are relevant for this document (using LLM)...")
+
+        from doc_evergreen.core.relevancy import add_relevancy_score
+
+        for file_path in file_summaries:
+            click.echo(f"  Scoring: {file_path}")
+
+            # Get the most recent summary
+            summary_data = get_summary(file_path, repo_path)
+
+            if summary_data:
+                file_summary = summary_data["summary"]
+                summary_timestamp = summary_data["timestamp"]
+
+                # Score relevancy
+                explanation, score = score_file_relevancy(file_path, file_summary, about)
+
+                # Store relevancy score
+                prompt_name = "score_relevancy"
+                prompt_version = get_prompt_version(prompt_name)
+
+                relevancy_timestamp = add_relevancy_score(
+                    file_path=file_path,
+                    doc_description=about,
+                    relevancy_explanation=explanation,
+                    relevancy_score=score,
+                    summary_text=file_summary,
+                    summary_timestamp=summary_timestamp,
+                    repo_path=repo_path,
+                    project_name=doc_key,
+                    prompt_name=prompt_name,
+                    prompt_version=prompt_version,
+                )
+
+                relevancy_scores[file_path] = score
+                click.echo(f"    Score: {score}/10 - {explanation[:60]}...")
+
+                # Collect source file data for template storage
+                source_file_data.append(
+                    {
+                        "file_path": file_path,
+                        "summary": {"text": file_summary, "timestamp": summary_timestamp},
+                        "relevancy": {
+                            "explanation": explanation,
+                            "score": score,
+                            "timestamp": relevancy_timestamp,
+                            "prompt": {"name": prompt_name, "version": prompt_version},
+                        },
+                    }
+                )
+
+        click.echo(f"✓ All {len(relevancy_scores)} files scored for relevancy")
+    else:
+        # Skip Step 3: Load existing relevancy scores
+        click.echo("\n⏩ Skipping Step 3 (Relevancy Scoring)")
+        click.echo("Loading existing relevancy scores...")
+
+        from doc_evergreen.core.relevancy import get_project_relevancy_dir
+
+        relevancy_dir = get_project_relevancy_dir(repo_path, doc_key)
+        if not relevancy_dir.exists():
+            raise ValueError(
+                f"No relevancy directory found for project '{doc_key}'. "
+                f"Cannot skip to step {start_step}. Run from step 1 first."
             )
-            click.echo(f"Saved customized template: {template_path}")
+
+        relevancy_files = list(relevancy_dir.glob("*.json"))
+        if not relevancy_files:
+            raise ValueError(
+                f"No relevancy scores found for project '{doc_key}'. "
+                f"Cannot skip to step {start_step}. Run from step 1 first."
+            )
+
+        for relevancy_file in relevancy_files:
+            with open(relevancy_file, encoding="utf-8") as f:
+                data = json.load(f)
+
+            if "versions" in data and data["versions"]:
+                file_path = data["file_path"]
+                # Get most recent version
+                latest_version = sorted(data["versions"], key=lambda v: v["timestamp"], reverse=True)[0]
+
+                relevancy_scores[file_path] = latest_version["relevancy_score"]
+
+                # Reconstruct source_file_data
+                source_file_data.append(
+                    {
+                        "file_path": file_path,
+                        "summary": latest_version["summary"],
+                        "relevancy": {
+                            "explanation": latest_version["relevancy_explanation"],
+                            "score": latest_version["relevancy_score"],
+                            "prompt": latest_version["prompt"],
+                        },
+                    }
+                )
+
+        click.echo(f"Loaded {len(relevancy_scores)} existing relevancy scores")
+
+    # Initialize variables for Step 4
+    customized_template = ""
+    selected_files: dict[str, str] = {}
+    template_version_identifier = ""
+    doc_key = ""
+
+    # Step 4: Template Customization
+    if start_step <= 4:
+        click.echo("\n🎨 Step 4: Customizing documentation template...")
+        click.echo("Creating template tailored to source files and document description (using LLM)...")
+
+        # Load the template guide
+        template_guide, template_guide_version = load_template_guide()
+
+        click.echo(f"Template guide: {template_guide_version}")
+        click.echo(f"Source files analyzed: {len(source_file_data)}")
+        click.echo("This may take 30-60 seconds...")
+
+        try:
+            # Create customized template with file mappings
+            customized_template, selected_files, prompt_name, prompt_version = create_customized_template(
+                template_guide=template_guide,
+                template_guide_version=template_guide_version,
+                about=about,
+                source_file_data=source_file_data,
+            )
+            click.echo("✓ Customized template created")
+            click.echo(f"  • Prompt: {prompt_name} (version {prompt_version})")
+            click.echo(f"  • Selected {len(selected_files)} relevant files:")
+            for file_path, reason in list(selected_files.items())[:5]:
+                click.echo(f"    - {file_path}: {reason[:60]}...")
+            if len(selected_files) > 5:
+                click.echo(f"    ... and {len(selected_files) - 5} more")
+
+            # Determine relative output path for project directory
+            try:
+                relative_output = output.relative_to(repo_path)
+            except ValueError:
+                relative_output = output
+
+            doc_key = str(relative_output)
+
+            # Define template version for metadata
+            # The customized template is the actual template used, versioned by timestamp
+            template_version_identifier = f"customized-{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+            # Save customized template to project directory with full metadata
+            template_file_path = save_customized_template(
+                doc_path=doc_key,
+                template_content=customized_template,
+                repo_path=repo_path,
+                template_version=template_version_identifier,
+                project_name=doc_key,
+                selected_files=selected_files,
+                doc_description=about,
+                template_guide_version=template_guide_version,
+                source_file_data=source_file_data,
+                prompt_name=prompt_name,
+                prompt_version=prompt_version,
+            )
+            click.echo(f"  ✓ Template saved to {template_file_path.name}")
 
         except Exception as e:
-            click.echo(f"⚠ Template customization failed: {e}", err=True)
-            click.echo("Using built-in template without customization")
-            customized_template = builtin_template
-            template_path = None
+            raise RuntimeError(f"Template customization failed: {e}")
     else:
-        # Use template directly without customization
-        customized_template = builtin_template
-        template_path = None
+        # Skip Step 4: Load most recent customized template
+        click.echo("\n⏩ Skipping Step 4 (Template Customization)")
+        click.echo("Loading most recent customized template...")
 
-    # Step 3: Map sources to sections
-    click.echo("\n🗺️  Step 3: Mapping sources to template sections...")
+        # Determine doc_key from output path
+        try:
+            relative_output = output.relative_to(repo_path)
+        except ValueError:
+            relative_output = output
+        doc_key = str(relative_output)
 
-    try:
-        source_mapping = map_sources_to_sections(customized_template, source_files, about)
-        click.echo(f"✓ Mapped {len(source_mapping)} sections")
+        # Find most recent customized template
+        project_dir = repo_path / ".doc-evergreen" / "projects" / doc_key
+        templates_dir = project_dir / "4_customized_template"
 
-        # Show mapping summary
-        for section, sources in source_mapping.items():
-            if sources:
-                click.echo(f"  • {section}: {len(sources)} source(s)")
+        if not templates_dir.exists():
+            raise ValueError(
+                f"No 4_customized_template directory found for '{doc_key}'. "
+                f"Cannot skip to step {start_step}. Run from step 1 first."
+            )
 
-        # Save source map
-        source_map_file = save_source_map(source_mapping, template_name, repo_path, metadata={"about": about})
-        click.echo(f"✓ Source map saved: {source_map_file.name}")
-    except Exception as e:
-        raise RuntimeError(f"Source mapping failed: {e}")
+        template_files = sorted(templates_dir.glob("customized_template_*.json"), reverse=True)
+        if not template_files:
+            raise ValueError(
+                f"No customized templates found for '{doc_key}'. "
+                f"Cannot skip to step {start_step}. Run from step 1 first."
+            )
 
-    # Step 4: Generate documentation
-    click.echo("\n🤖 Step 4: Generating documentation (using LLM with source mapping)...")
-    click.echo("This may take 30-60 seconds...")
+        # Load most recent template
+        with open(template_files[0], encoding="utf-8") as f:
+            template_data = json.load(f)
 
-    try:
-        generated_doc = generate_document_with_mapping(customized_template, source_files, about, source_mapping)
-        click.echo("✓ Document generated successfully")
-    except Exception as e:
-        raise RuntimeError(f"Document generation failed: {e}")
+        customized_template = template_data["customized_template"]
+        selected_files = template_data.get("selected_files", {})
+        template_version_identifier = template_data["template_version_id"]
 
-    # Step 5: Backup existing document
+        click.echo(f"Loaded customized template: {template_files[0].name}")
+        click.echo(f"  • Template version: {template_version_identifier}")
+        click.echo(f"  • Selected {len(selected_files)} source files")
+
+    # Step 5: Document Generation
+    if start_step <= 5:
+        click.echo("\n📝 Step 5: Generating final documentation...")
+        click.echo("Using customized template and full source file content to create document (using LLM)...")
+
+        click.echo(f"Document topic: {about[:80]}{'...' if len(about) > 80 else ''}")
+        click.echo(f"Loading full content of {len(selected_files)} selected files...")
+
+        # Load full content of selected source files
+        source_files_content: dict[str, str] = {}
+        for idx, file_path in enumerate(selected_files.keys(), 1):
+            full_path = repo_path / file_path
+            if full_path.exists():
+                with open(full_path, encoding="utf-8") as f:
+                    source_files_content[file_path] = f.read()
+                click.echo(f"  [{idx}/{len(selected_files)}] Loaded: {file_path}")
+            else:
+                click.echo(f"  [{idx}/{len(selected_files)}] ⚠️  Warning: File not found: {file_path}", err=True)
+
+        click.echo(f"\n✓ Loaded {len(source_files_content)} files")
+        click.echo("Generating documentation with LLM...")
+        click.echo("This may take 30-60 seconds...")
+
+        try:
+            # Generate document using customized template, selected files, and full source content
+            generated_doc = generate_document(
+                customized_template=customized_template,
+                about=about,
+                selected_files=selected_files,
+                source_files_content=source_files_content,
+            )
+            click.echo("✓ Documentation generated successfully")
+            click.echo(f"  • Document length: {len(generated_doc):,} characters")
+
+        except Exception as e:
+            raise RuntimeError(f"Document generation failed: {e}")
+    else:
+        raise ValueError(f"Invalid start_step: {start_step}. Maximum is 5.")
+
+    # Backup existing document if it exists
+    backup_timestamp = None
     if output.exists():
-        click.echo("\n💾 Step 5: Backing up existing document...")
-        backup_path = backup_document(output, repo_path)
-        if backup_path:
-            click.echo(f"✓ Backed up to: {backup_path}")
-    else:
-        click.echo("\n💾 Step 5: No existing document to backup")
+        click.echo("\n💾 Backing up existing document...")
+        backup_timestamp = backup_existing_document(doc_key, repo_path)
+        if backup_timestamp:
+            click.echo(f"✓ Backed up existing document with timestamp: {backup_timestamp}")
 
-    # Step 6: Save generated document
-    click.echo(f"\n💾 Step 6: Saving document to {output}...")
+    # Save generated document to output location
+    click.echo(f"\n💾 Saving document to {output}...")
 
     # Ensure output directory exists
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -340,74 +546,46 @@ def execute_create(
 
     click.echo("✓ Document saved successfully")
 
-    # Step 7: Update history
-    click.echo("\n📋 Step 7: Updating history...")
+    # Get the customized template version (most recent version timestamp)
+    from doc_evergreen.core.project import ensure_project_dir
 
-    # Load history to check if this is a regeneration
-    history = load_history(repo_path)
+    project_dir = ensure_project_dir(doc_key, repo_path)
+    template_metadata_path = project_dir / "4_customized_template" / "metadata.json"
+    customized_template_version = None
+    if template_metadata_path.exists():
+        with open(template_metadata_path, encoding="utf-8") as f:
+            template_data = json.load(f)
+            if template_data.get("versions"):
+                # Get the most recent version
+                sorted_versions = sorted(template_data["versions"], key=lambda v: v.get("version", ""), reverse=True)
+                customized_template_version = sorted_versions[0]["version"]
 
-    # Determine relative output path
-    try:
-        relative_output = output.relative_to(repo_path)
-    except ValueError:
-        # Output is outside repo, use absolute
-        relative_output = output
+    # Get prompt version for generate_document
+    generate_prompt_name = "generate_document"
+    generate_prompt_version = get_prompt_version(generate_prompt_name)
 
-    doc_key = str(relative_output)
+    # Save document content to project directory with versioned metadata
+    from doc_evergreen.core.project import save_generated_document
 
-    # Get relative path for source map
-    try:
-        relative_source_map = source_map_file.relative_to(repo_path)
-    except ValueError:
-        relative_source_map = source_map_file
-
-    # Check if this is a regeneration
-    is_regeneration = doc_key in history.get("docs", {})
-
-    if is_regeneration:
-        # Add version entry (internally saves history)
-        if backup_path:
-            try:
-                relative_backup = backup_path.relative_to(repo_path)
-            except ValueError:
-                relative_backup = backup_path
-
-            add_version_entry(
-                doc_path=doc_key,
-                backup_path=str(relative_backup),
-                template_name=template_name,
-                template_path=str(template_path.relative_to(repo_path)) if template_path else "",
-                sources=sources_for_history,
-                repo_path=repo_path,
-                source_map_path=str(relative_source_map),
-            )
-            click.echo("✓ Added version entry for regeneration")
-    else:
-        # Add new doc entry (internally saves history)
-        add_doc_entry(
-            doc_path=doc_key,
-            about=about,
-            template_name=template_name,
-            template_path=str(template_path.relative_to(repo_path)) if template_path else "",
-            sources=sources_for_history,
-            repo_path=repo_path,
-            source_map_path=str(relative_source_map),
-        )
-        click.echo("✓ Added new document entry")
-
-    click.echo("✓ History updated")
+    save_generated_document(
+        doc_path=doc_key,
+        content=generated_doc,
+        repo_path=repo_path,
+        project_name=doc_key,
+        doc_description=about,
+        source_files_content=source_files_content,
+        customized_template_version=customized_template_version,
+        prompt_name=generate_prompt_name,
+        prompt_version=generate_prompt_version,
+    )
+    click.echo("✓ Content saved to project directory")
 
     # Success summary
     click.echo("\n" + "=" * 60)
     click.echo("✅ Documentation created successfully!")
     click.echo("=" * 60)
     click.echo(f"Output: {output}")
-    template_desc = f"{template_name} ({'customized' if do_customize else 'built-in'})"
-    click.echo(f"Template: {template_desc}")
-    click.echo(f"Source mapping: {source_map_file.name}")
-    click.echo(f"Sources: {len(source_files)} files")
-    if is_regeneration and backup_path:
-        click.echo(f"Backup: {backup_path}")
+    click.echo(f"Template: {template_version_identifier}")
     click.echo("=" * 60)
 
     # Close logger

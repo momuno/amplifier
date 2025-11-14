@@ -1,0 +1,8 @@
+{
+  "versions": [
+    {
+      "version": "2025-01-13T23:00:00.000000+00:00",
+      "prompt": "You are helping determine which source files are relevant for generating a specific document.\n\nDocument Description:\n{doc_description}\n\nSource File: {file_path}\nFile Summary:\n{file_summary}\n\nBased on the document description and this file's summary, evaluate the relevancy of this source file for generating the requested document.\n\nProvide your response in the following JSON format:\n{{\n  \"relevancy_explanation\": \"Explain why this file is or isn't relevant. If relevant, describe what specific content or context it would provide. Be specific and concise.\",\n  \"relevancy_score\": <number from 1-10, where 10 is completely relevant and 1 is completely irrelevant>\n}}\n\nConsiderations:\n- Score 8-10: Essential content directly addressing the document's purpose\n- Score 5-7: Supporting content that provides useful context\n- Score 3-4: Tangentially related but limited utility\n- Score 1-2: Not relevant to the document's purpose\n\nProvide ONLY the JSON response, no additional text."
+    }
+  ]
+}
