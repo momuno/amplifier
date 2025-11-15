@@ -1,14 +1,38 @@
 """
 Summaries cache management for doc-evergreen.
 
-Handles versioned storage of file summaries with git commit tracking.
+Handles versioned storage of file summaries with content hash tracking.
 Each file's summary is stored individually with version information.
 """
 
+import hashlib
 import json
-import subprocess
-from datetime import datetime, timezone
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
+
+
+def get_file_content_hash(file_path: str, repo_path: Path) -> str | None:
+    """
+    Get the SHA-256 hash of a file's content.
+
+    Args:
+        file_path: Path to file (relative to repo root)
+        repo_path: Path to repository root
+
+    Returns:
+        SHA-256 hash string or None if file doesn't exist
+    """
+    full_path = repo_path / file_path
+    if not full_path.exists():
+        return None
+
+    try:
+        with open(full_path, "rb") as f:
+            content = f.read()
+            return hashlib.sha256(content).hexdigest()
+    except Exception:
+        return None
 
 
 def get_file_summaries_dir(repo_path: Path) -> Path:
@@ -44,47 +68,6 @@ def sanitize_filepath_to_filename(file_path: str) -> str:
     return f"{sanitized}.json"
 
 
-def get_git_commit_hash(file_path: str, repo_path: Path) -> str | None:
-    """
-    Get the current git commit hash for a specific file.
-
-    Args:
-        file_path: Path to file (relative to repo root)
-        repo_path: Path to repository root
-
-    Returns:
-        Git commit hash (full SHA), or None if not in git or error
-    """
-    try:
-        # Get the commit hash for the file
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%H", "--", file_path],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-
-        # If no commit found, file might not be committed yet
-        # Try to get current HEAD
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=False
-        )
-
-        if result.returncode == 0 and result.stdout.strip():
-            # File exists but not committed - return HEAD with marker
-            return f"{result.stdout.strip()}-uncommitted"
-
-        return None
-
-    except Exception:
-        # Not in a git repo or git not available
-        return None
-
-
 def get_versioned_summary_path(file_path: str, repo_path: Path) -> Path:
     """
     Get the path to a versioned summary file.
@@ -112,7 +95,7 @@ def get_summary(file_path: str, repo_path: Path) -> dict[str, str] | None:
     Returns:
         Summary data dictionary with keys (flattened for backward compatibility):
         - file_path: Original file path
-        - commit_hash: Git commit hash when summarized
+        - content_hash: SHA-256 hash of file content when summarized
         - prompt_version: Version of prompt used
         - summary: Summary text
         - timestamp: When summary was created
@@ -124,7 +107,7 @@ def get_summary(file_path: str, repo_path: Path) -> dict[str, str] | None:
         return None
 
     try:
-        with open(summary_path, "r", encoding="utf-8") as f:
+        with open(summary_path, encoding="utf-8") as f:
             data = json.load(f)
 
         if data is None or not isinstance(data, dict):
@@ -149,20 +132,19 @@ def get_summary(file_path: str, repo_path: Path) -> dict[str, str] | None:
 
                 return {
                     "file_path": file_path,  # Return original file_path for backward compatibility
-                    "commit_hash": most_recent.get("inputs", {}).get("commit_hash", "not-in-git"),
+                    "content_hash": most_recent.get("inputs", {}).get("content_hash", "no-hash"),
                     "prompt": most_recent.get("prompt", {"name": "unknown", "version": "unknown"}),
                     "prompt_version": most_recent.get("prompt", {}).get("version", "unknown"),  # For legacy compat
                     "summary": summary_text,
                     "timestamp": most_recent.get("version", ""),  # version IS the timestamp
                 }
-            else:
-                # Old versioned format
-                return {"file_path": file_path, **most_recent}
+            # Old versioned format
+            return {"file_path": file_path, **most_recent}
 
         # Legacy flat format - return as-is
         return data
 
-    except (json.JSONDecodeError, IOError):
+    except (OSError, json.JSONDecodeError):
         return None
 
 
@@ -186,8 +168,8 @@ def add_summary(
     summaries_dir = get_file_summaries_dir(repo_path)
     summaries_dir.mkdir(parents=True, exist_ok=True)
 
-    # Get git commit hash for inputs
-    commit_hash = get_git_commit_hash(file_path, repo_path)
+    # Get content hash for inputs
+    content_hash = get_file_content_hash(file_path, repo_path)
 
     # Get sanitized name for this file summary with parent directory
     sanitized_filename = sanitize_filepath_to_filename(file_path).replace(".json", "")
@@ -195,7 +177,7 @@ def add_summary(
     full_name = f"2_file_summaries/{sanitized_filename}"
 
     # Create new version entry with standardized structure
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     new_version = {
         "version": now,  # Timestamp IS the version
         "outputs": {
@@ -207,7 +189,7 @@ def add_summary(
         },
         "inputs": {
             "file_path": file_path,
-            "commit_hash": commit_hash if commit_hash else "not-in-git",
+            "content_hash": content_hash if content_hash else "no-hash",
         },
     }
 
@@ -216,64 +198,14 @@ def add_summary(
 
     if summary_path.exists():
         try:
-            with open(summary_path, "r", encoding="utf-8") as f:
+            with open(summary_path, encoding="utf-8") as f:
                 data = json.load(f)
 
-            # Handle legacy formats - convert to new standardized format
-            if data and "versions" not in data:
-                # Old flat format: convert to new standardized format
-                legacy_timestamp = data.get("timestamp", now)
-                legacy_version = {
-                    "version": legacy_timestamp,  # Use legacy timestamp as version
-                    "outputs": {
-                        "file_summary": data.get("summary", ""),
-                    },
-                    "prompt": {
-                        "name": f"prompts/{data.get('prompt', {}).get('name', 'unknown')}.json",
-                        "version": data.get("prompt", {}).get("version", "unknown"),
-                    },
-                    "inputs": {
-                        "file_path": file_path,
-                        "commit_hash": data.get("commit_hash", "not-in-git"),
-                    },
-                }
-                data = {"name": full_name, "versions": [legacy_version]}
-            elif data and "versions" in data:
-                # Update name field if it's still using old format
-                if "file_path" in data and "name" not in data:
-                    data["name"] = full_name
-                    del data["file_path"]
-                elif "name" in data and not data["name"].startswith("2_file_summaries/"):
-                    # Update old name format to include parent directory
-                    data["name"] = full_name
-
-                # Check if versions are already in new format or need migration
-                if data["versions"] and "outputs" not in data["versions"][0]:
-                    # Old versioned format - migrate each version
-                    migrated_versions = []
-                    for old_ver in data["versions"]:
-                        old_timestamp = old_ver.get("timestamp", now)
-                        migrated = {
-                            "version": old_timestamp,  # Use old timestamp as version
-                            "outputs": {
-                                "file_summary": old_ver.get("summary", ""),
-                            },
-                            "prompt": {
-                                "name": f"prompts/{old_ver.get('prompt', {}).get('name', 'unknown')}.json",
-                                "version": old_ver.get("prompt", {}).get("version", "unknown"),
-                            },
-                            "inputs": {
-                                "file_path": file_path,
-                                "commit_hash": old_ver.get("commit_hash", "not-in-git"),
-                            },
-                        }
-                        migrated_versions.append(migrated)
-                    data["versions"] = migrated_versions
-            elif not data:
-                # Empty file
+            # Ensure proper structure
+            if not data or "versions" not in data:
                 data = {"name": full_name, "versions": []}
 
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             # Corrupted file - start fresh
             data = {"name": full_name, "versions": []}
     else:

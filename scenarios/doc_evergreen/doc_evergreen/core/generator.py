@@ -5,10 +5,6 @@ Uses direct Anthropic API calls to generate documentation.
 Does NOT use Claude Code SDK to avoid conflicts with git hooks.
 """
 
-import time
-
-import anthropic
-
 from doc_evergreen.prompts import load_prompt
 
 
@@ -23,34 +19,41 @@ def load_api_key() -> str:
         FileNotFoundError: If API key file doesn't exist
         ValueError: If API key is empty
     """
-    from pathlib import Path
+
+    # load openai api key from environment variable
+    import os
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        return api_key.strip()
 
     # Try .claude/api_key.txt in current directory or parent directories
-    current = Path.cwd()
+    # current = Path.cwd()
 
-    # Search up to 5 levels for .claude directory
-    for _ in range(5):
-        api_key_path = current / ".claude" / "api_key.txt"
-        if api_key_path.exists():
-            with open(api_key_path, "r", encoding="utf-8") as f:
-                api_key = f.read().strip()
-
-            if not api_key:
-                raise ValueError(f"API key file is empty: {api_key_path}")
-
-            # Handle format: CLAUDE_API_KEY=sk-ant-... or ANTHROPIC_API_KEY=sk-ant-...
-            if "=" in api_key:
-                # Extract value after the equals sign
-                api_key = api_key.split("=", 1)[1].strip()
-
-            return api_key
-
-        # Go up one level
-        parent = current.parent
-        if parent == current:
-            # Reached root
-            break
-        current = parent
+    #
+    ## Search up to 5 levels for .claude directory
+    # for _ in range(5):
+    #    api_key_path = current / ".claude" / "api_key.txt"
+    #    if api_key_path.exists():
+    #        with open(api_key_path, "r", encoding="utf-8") as f:
+    #            api_key = f.read().strip()
+    #
+    #        if not api_key:
+    #            raise ValueError(f"API key file is empty: {api_key_path}")
+    #
+    #        # Handle format: CLAUDE_API_KEY=sk-ant-... or ANTHROPIC_API_KEY=sk-ant-...
+    #        if "=" in api_key:
+    #            # Extract value after the equals sign
+    #            api_key = api_key.split("=", 1)[1].strip()
+    #
+    #        return api_key
+    #
+    #    # Go up one level
+    #    parent = current.parent
+    #    if parent == current:
+    #        # Reached root
+    #        break
+    #    current = parent
 
     # Not found
     raise FileNotFoundError(
@@ -61,7 +64,7 @@ def load_api_key() -> str:
 
 def call_llm(
     prompt: str,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "gpt-4o",
     max_tokens: int = 4000,
     temperature: float = 0.3,
     max_retries: int = 3,
@@ -83,44 +86,80 @@ def call_llm(
         RuntimeError: If API call fails after all retries
     """
     api_key = load_api_key()
-    client = anthropic.Anthropic(api_key=api_key)
 
-    retry_delay = 1.0  # Start with 1 second delay
+    # Use OpenAI GPT-4o for documentation generation
+    import time
 
+    import openai
+
+    client = openai.OpenAI(api_key=api_key)
     for attempt in range(max_retries):
         try:
-            message = client.messages.create(
+            response = client.chat.completions.create(
                 model=model,
+                messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
                 temperature=temperature,
-                messages=[{"role": "user", "content": prompt}],
             )
-
-            # Extract text from response
-            if message.content and len(message.content) > 0:
-                first_block = message.content[0]
-                # Check if it's a text block (has text attribute)
-                if hasattr(first_block, "text"):
-                    return first_block.text  # type: ignore[attr-defined]
-
+            text = response.choices[0].message.content
+            if text:
+                return text.strip()
             raise ValueError("Empty response from API")
 
-        except anthropic.RateLimitError as e:
+        except openai.APIConnectionError as e:
             if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-                retry_delay *= 2  # Exponential backoff
+                time.sleep(2**attempt)  # Exponential backoff
                 continue
-            raise RuntimeError(f"Rate limit exceeded after {max_retries} retries: {e}")
+            raise RuntimeError(f"Connection error after {max_retries} retries: {e}")
 
-        except anthropic.APIError as e:
+        except openai.APIError as e:
             if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-                retry_delay *= 2
+                time.sleep(2**attempt)
                 continue
             raise RuntimeError(f"API error after {max_retries} retries: {e}")
 
         except Exception as e:
             raise RuntimeError(f"Unexpected error calling LLM: {e}")
+
+    raise RuntimeError("Failed to get response from LLM after all retries")
+    # client = anthropic.Anthropic(api_key=api_key)
+    #
+    # retry_delay = 1.0  # Start with 1 second delay
+    #
+    # for attempt in range(max_retries):
+    #    try:
+    #        message = client.messages.create(
+    #            model=model,
+    #            max_tokens=max_tokens,
+    #            temperature=temperature,
+    #            messages=[{"role": "user", "content": prompt}],
+    #        )
+    #
+    #        # Extract text from response
+    #        if message.content and len(message.content) > 0:
+    #            first_block = message.content[0]
+    #            # Check if it's a text block (has text attribute)
+    #            if hasattr(first_block, "text"):
+    #                return first_block.text  # type: ignore[attr-defined]
+    #
+    #        raise ValueError("Empty response from API")
+    #
+    #    except anthropic.RateLimitError as e:
+    #        if attempt < max_retries - 1:
+    #            time.sleep(retry_delay)
+    #            retry_delay *= 2  # Exponential backoff
+    #            continue
+    #        raise RuntimeError(f"Rate limit exceeded after {max_retries} retries: {e}")
+    #
+    #    except anthropic.APIError as e:
+    #        if attempt < max_retries - 1:
+    #            time.sleep(retry_delay)
+    #            retry_delay *= 2
+    #            continue
+    #        raise RuntimeError(f"API error after {max_retries} retries: {e}")
+    #
+    #    except Exception as e:
+    #        raise RuntimeError(f"Unexpected error calling LLM: {e}")
 
     raise RuntimeError("Failed to get response from LLM")
 

@@ -5,12 +5,35 @@ Each document gets its own project directory under .doc-evergreen/projects/
 containing metadata, content copies, templates, and history.
 """
 
+import hashlib
+import json
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import json
+
+def get_file_content_hash(file_path: str, repo_path: Path) -> str | None:
+    """
+    Get the SHA-256 hash of a file's content.
+
+    Args:
+        file_path: Path to file (relative to repo root)
+        repo_path: Path to repository root
+
+    Returns:
+        SHA-256 hash string or None if file doesn't exist/error occurs
+    """
+    full_path = repo_path / file_path
+    if not full_path.exists():
+        return None
+
+    try:
+        with open(full_path, "rb") as f:
+            content = f.read()
+            return hashlib.sha256(content).hexdigest()
+    except Exception:
+        return None
 
 
 def get_project_dir(doc_path: str, repo_path: Path) -> Path:
@@ -189,16 +212,14 @@ def save_generated_document(
     # Create timestamp for this version
     now = datetime.now(UTC).isoformat()
 
-    # Get git commit hashes for source files content
-    from doc_evergreen.core.summaries import get_git_commit_hash
-
-    source_files_with_commits = []
-    for file_path in source_files_content.keys():
-        commit_hash = get_git_commit_hash(file_path, repo_path)
-        source_files_with_commits.append(
+    # Get content hashes for source files
+    source_files_with_hashes = []
+    for file_path in source_files_content:
+        content_hash = get_file_content_hash(file_path, repo_path)
+        source_files_with_hashes.append(
             {
                 "file_path": file_path,
-                "commit_hash": commit_hash if commit_hash else "not-in-git",
+                "content_hash": content_hash if content_hash else "no-hash",
             }
         )
 
@@ -222,7 +243,7 @@ def save_generated_document(
                 "name": "4_customized_template/metadata.json",
                 "version": customized_template_version if customized_template_version else "unknown",
             },
-            "source_files_content": source_files_with_commits,  # List of {file_path, commit_hash}
+            "source_files_content": source_files_with_hashes,  # List of {file_path, content_hash}
         },
     }
 
@@ -253,7 +274,7 @@ def save_generated_document(
                 # Empty file
                 data = {"project_name": project_name, "name": full_name, "versions": []}
 
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             # Corrupted file - start fresh
             data = {"project_name": project_name, "name": full_name, "versions": []}
     else:
@@ -397,7 +418,7 @@ def save_customized_template(
                 # Empty file
                 data = {"project_name": project_name, "name": full_name, "versions": []}
 
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             # Corrupted file - start fresh
             data = {"project_name": project_name, "name": full_name, "versions": []}
     else:

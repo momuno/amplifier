@@ -2,15 +2,12 @@
 Tests for versioned file summary storage system.
 """
 
-from pathlib import Path
-from unittest.mock import Mock
-from unittest.mock import patch
-
 import json
+from pathlib import Path
 
 from doc_evergreen.core.summaries import add_summary
+from doc_evergreen.core.summaries import get_file_content_hash
 from doc_evergreen.core.summaries import get_file_summaries_dir
-from doc_evergreen.core.summaries import get_git_commit_hash
 from doc_evergreen.core.summaries import get_summary
 from doc_evergreen.core.summaries import get_versioned_summary_path
 from doc_evergreen.core.summaries import sanitize_filepath_to_filename
@@ -70,7 +67,7 @@ def test_add_and_get_summary_success(tmp_path: Path):
     assert isinstance(prompt_data, dict)
     assert prompt_data["name"] == f"prompts/{prompt_name}.json"  # type: ignore[index]
     assert prompt_data["version"] == prompt_version  # type: ignore[index]
-    assert "commit_hash" in summary_data
+    assert "content_hash" in summary_data
     assert "timestamp" in summary_data
 
 
@@ -89,7 +86,7 @@ def test_add_multiple_versions(tmp_path: Path):
 
     # Read the JSON file directly
     summary_path = get_versioned_summary_path(file_path, tmp_path)
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         data = json.load(f)
 
     # Should have 3 versions
@@ -180,7 +177,7 @@ def test_add_summary_appends_versions(tmp_path: Path):
 
     # Both versions should exist in the file
     summary_path = get_versioned_summary_path(file_path, tmp_path)
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         data = json.load(f)
 
     assert len(data["versions"]) == 2
@@ -189,65 +186,20 @@ def test_add_summary_appends_versions(tmp_path: Path):
     assert data["versions"][1]["outputs"]["summary"] == "Updated summary"
 
 
-def test_get_git_commit_hash_success(tmp_path: Path):
-    """Test getting git commit hash for a file."""
-    # Mock successful git log command
-    mock_result = Mock()
-    mock_result.returncode = 0
-    mock_result.stdout = "abc123def456789\n"
+def test_get_file_content_hash_success(tmp_path: Path):
+    """Test getting content hash for a file."""
+    test_file = tmp_path / "test.py"
+    test_file.write_text("print('hello')")
 
-    with patch("subprocess.run", return_value=mock_result):
-        commit_hash = get_git_commit_hash("test.py", tmp_path)
-        assert commit_hash == "abc123def456789"
+    content_hash = get_file_content_hash("test.py", tmp_path)
+    assert content_hash is not None
+    assert len(content_hash) == 64  # SHA-256 produces 64 hex chars
 
 
-def test_get_git_commit_hash_uncommitted(tmp_path: Path):
-    """Test getting commit hash for uncommitted file."""
-    # Mock git log returning nothing (file not committed)
-    mock_log_result = Mock()
-    mock_log_result.returncode = 0
-    mock_log_result.stdout = ""
-
-    # Mock git rev-parse HEAD returning current HEAD
-    mock_head_result = Mock()
-    mock_head_result.returncode = 0
-    mock_head_result.stdout = "current_head_hash\n"
-
-    with patch("subprocess.run", side_effect=[mock_log_result, mock_head_result]):
-        commit_hash = get_git_commit_hash("test.py", tmp_path)
-        assert commit_hash == "current_head_hash-uncommitted"
-
-
-def test_get_git_commit_hash_not_in_git(tmp_path: Path):
-    """Test getting commit hash when not in a git repo."""
-    # Mock git commands failing
-    mock_result = Mock()
-    mock_result.returncode = 128  # Git error code
-    mock_result.stdout = ""
-
-    with patch("subprocess.run", return_value=mock_result):
-        commit_hash = get_git_commit_hash("test.py", tmp_path)
-        assert commit_hash is None
-
-
-def test_get_git_commit_hash_exception(tmp_path: Path):
-    """Test handling of exceptions when getting commit hash."""
-    with patch("subprocess.run", side_effect=Exception("Git not available")):
-        commit_hash = get_git_commit_hash("test.py", tmp_path)
-        assert commit_hash is None
-
-
-def test_add_summary_with_not_in_git(tmp_path: Path):
-    """Test add_summary when file is not in git."""
-    file_path = "test/no_git.py"
-
-    # Mock git returning None
-    with patch("doc_evergreen.core.summaries.get_git_commit_hash", return_value=None):
-        add_summary(file_path, "Test summary", tmp_path, "summarize_file", "2025-01-13T19:00:00Z")
-
-        summary_data = get_summary(file_path, tmp_path)
-        assert summary_data is not None
-        assert summary_data["commit_hash"] == "not-in-git"
+def test_get_file_content_hash_missing_file(tmp_path: Path):
+    """Test getting content hash for non-existent file."""
+    content_hash = get_file_content_hash("missing.py", tmp_path)
+    assert content_hash is None
 
 
 def test_summary_json_structure(tmp_path: Path):
@@ -257,13 +209,16 @@ def test_summary_json_structure(tmp_path: Path):
     prompt_name = "summarize_file"
     prompt_version = "2025-01-13T19:00:00Z"
 
-    # Mock git to return a specific hash
-    with patch("doc_evergreen.core.summaries.get_git_commit_hash", return_value="test_commit_hash"):
-        add_summary(file_path, summary_text, tmp_path, prompt_name, prompt_version)
+    # Create the test file
+    test_file = tmp_path / file_path
+    test_file.parent.mkdir(parents=True, exist_ok=True)
+    test_file.write_text("# Test file")
+
+    add_summary(file_path, summary_text, tmp_path, prompt_name, prompt_version)
 
     # Read the JSON file directly
     summary_path = get_versioned_summary_path(file_path, tmp_path)
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         data = json.load(f)
 
     # Verify top-level structure (uses 'name' with parent directory)
@@ -291,7 +246,8 @@ def test_summary_json_structure(tmp_path: Path):
     assert "version" in version["prompt"]
 
     # Verify inputs
-    assert version["inputs"]["commit_hash"] == "test_commit_hash"
+    assert "content_hash" in version["inputs"]
+    assert len(version["inputs"]["content_hash"]) == 64  # SHA-256
     assert version["inputs"]["file_path"] == file_path
 
     # Verify prompt values (name is now full file path)
@@ -299,14 +255,18 @@ def test_summary_json_structure(tmp_path: Path):
     assert version["prompt"]["version"] == prompt_version
 
     # Verify outputs
-    assert version["outputs"]["summary"] == summary_text
+    assert version["outputs"]["file_summary"] == summary_text
 
 
 def test_multiple_files_in_same_directory(tmp_path: Path):
     """Test storing summaries for multiple files."""
     files = ["src/auth.py", "src/models.py", "src/utils.py"]
 
+    # Create the test files
     for file_path in files:
+        test_file = tmp_path / file_path
+        test_file.parent.mkdir(parents=True, exist_ok=True)
+        test_file.write_text(f"# {file_path}")
         add_summary(file_path, f"Summary for {file_path}", tmp_path, "summarize_file", "2025-01-13T19:00:00Z")
 
     # Verify all were saved
@@ -321,42 +281,28 @@ def test_multiple_files_in_same_directory(tmp_path: Path):
         assert summary_data["summary"] == f"Summary for {file_path}"
 
 
-def test_legacy_format_conversion(tmp_path: Path):
-    """Test that legacy format is automatically converted to versioned format."""
-    file_path = "test/legacy.py"
-    summary_path = get_versioned_summary_path(file_path, tmp_path)
+def test_legacy_format_removed(tmp_path: Path):
+    """Test that we no longer support legacy format conversion."""
+    # This test just ensures clean handling of files without legacy migration
+    file_path = "test/new.py"
 
-    # Create a legacy format file
-    summary_path.parent.mkdir(parents=True, exist_ok=True)
-    legacy_data = {
-        "file_path": file_path,
-        "commit_hash": "legacy_hash",
-        "prompt_version": "2025-01-13T19:00:00Z",
-        "summary": "Legacy summary",
-        "timestamp": "2025-01-13T22:00:00Z",
-    }
-    with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump(legacy_data, f, indent=2, ensure_ascii=False)
+    # Create the test file
+    test_file = tmp_path / file_path
+    test_file.parent.mkdir(parents=True, exist_ok=True)
+    test_file.write_text("# New file")
 
-    # get_summary should read the legacy format
-    summary_data = get_summary(file_path, tmp_path)
-    assert summary_data is not None
-    assert summary_data["summary"] == "Legacy summary"
-    assert summary_data["commit_hash"] == "legacy_hash"
-
-    # Adding a new summary should convert to versioned format
+    # Add a new summary
     add_summary(file_path, "New summary", tmp_path, "summarize_file", "2025-01-13T21:00:00Z")
 
     # Read the file directly
-    with open(summary_path, "r", encoding="utf-8") as f:
+    summary_path = get_versioned_summary_path(file_path, tmp_path)
+    with open(summary_path, encoding="utf-8") as f:
         data = json.load(f)
 
-    # Should now be in versioned format with 2 versions
+    # Should be in versioned format with 1 version
     assert "versions" in data
-    assert len(data["versions"]) == 2
-    # Access summary from new standardized structure
-    assert data["versions"][0]["outputs"]["summary"] == "Legacy summary"  # Converted legacy
-    assert data["versions"][1]["outputs"]["summary"] == "New summary"  # New version
+    assert len(data["versions"]) == 1
+    assert data["versions"][0]["outputs"]["file_summary"] == "New summary"
 
     # get_summary should return the most recent
     summary_data = get_summary(file_path, tmp_path)

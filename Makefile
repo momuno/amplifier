@@ -132,8 +132,8 @@ help: ## Show ALL available commands
 	@echo "  make doc-create ABOUT=\"...\" OUTPUT=<path> [SOURCES=\"pattern1 pattern2\"] [START_STEP=N]  Generate new docs"
 	@echo "    Example: make doc-create ABOUT=\"API docs\" OUTPUT=API.md SOURCES=\"**/*.md **/*.py\""
 	@echo "    Example: make doc-create ABOUT=\"API docs\" OUTPUT=API.md START_STEP=4  # Skip to step 4"
-	@echo "  make doc-regenerate DOC=<path>  Regenerate specific document"
-	@echo "  make doc-regenerate ALL=true    Regenerate all documents"
+	@echo "  make doc-regenerate DOC=<path>  Regenerate document if source files updated"
+	@echo "    Example: make doc-regenerate DOC=README.md"
 	@echo ""
 	@echo "ARTICLE ILLUSTRATION:"
 	@echo "  make illustrate INPUT=<file> [OUTPUT=<path>] [STYLE=\"...\"] [APIS=\"...\"] [RESUME=true]  Generate illustrations"
@@ -700,13 +700,12 @@ doc-create: ## Create new documentation with LLM-guided discovery. Usage: make d
 	fi; \
 	eval $$CMD
 
-doc-regenerate: ## Regenerate existing documentation. Usage: make doc-regenerate DOC=path OR make doc-regenerate ALL=true
-	@cd $(repo_root) && \
-	if [ "$(ALL)" = "true" ]; then \
-		scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate --all; \
-	elif [ -n "$(DOC)" ]; then \
-		scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate "$(DOC)"; \
-	else \
-		echo "Error: Please provide DOC=path or ALL=true. Usage: make doc-regenerate DOC=path"; \
+doc-regenerate: ## Regenerate existing documentation when source files updated. Usage: make doc-regenerate DOC=path
+	@if [ -z "$(DOC)" ]; then \
+		echo "Error: Please provide a DOC path. Usage: make doc-regenerate DOC=path"; \
+		echo "Example: make doc-regenerate DOC=README.md"; \
 		exit 1; \
 	fi
+	@cd $(repo_root) && \
+	scenarios/doc_evergreen/.venv/bin/python -m doc_evergreen.cli regenerate "$(DOC)"
+

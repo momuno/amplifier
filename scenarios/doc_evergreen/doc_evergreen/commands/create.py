@@ -21,6 +21,7 @@ from doc_evergreen.core.generator import summarize_file
 from doc_evergreen.core.project import backup_existing_document
 from doc_evergreen.core.project import save_customized_template
 from doc_evergreen.core.summaries import add_summary
+from doc_evergreen.core.summaries import get_file_content_hash
 from doc_evergreen.core.summaries import get_summary
 from doc_evergreen.core.template import load_template_guide
 from doc_evergreen.prompts import get_prompt_version
@@ -211,24 +212,23 @@ def execute_create(
         total_size = sum(len(content) for content in source_files.values())
         click.echo(f"Total size: {format_file_size(total_size)}")
     else:
-        # Skip Step 1: Load existing summaries to get source file list
+        # Skip Step 1: When starting from step 2, we must have sources specified
         click.echo("\n⏩ Skipping Step 1 (File Sourcing)")
         click.echo("Loading source files from existing summaries...")
 
-        from doc_evergreen.core.summaries import get_file_summaries_dir
+        if not sources:
+            raise ValueError("--sources is required when starting from step 2")
 
-        summaries_dir = get_file_summaries_dir(repo_path)
-        if not summaries_dir.exists():
-            raise ValueError(f"No summaries directory found. Cannot skip to step {start_step}. Run from step 1 first.")
+        # Use the provided sources - these are the files we need to process
+        patterns = list(sources)
 
-        # Load all source files that have summaries
-        summary_files = list(summaries_dir.glob("*.json"))
-        if not summary_files:
-            raise ValueError(f"No summaries found. Cannot skip to step {start_step}. Run from step 1 first.")
+        # Gather the actual file content for these sources
+        source_files = gather_files(patterns, repo_path)
 
-        # We'll load the actual files in Step 2 when we load summaries
-        # For now, just note that we're skipping
-        click.echo(f"Found {len(summary_files)} files with existing summaries")
+        if not source_files:
+            raise ValueError("No source files found for the specified patterns")
+
+        click.echo(f"Found {len(source_files)} files with existing summaries")
 
     # Step 2: File Summarization
     if start_step <= 2:
@@ -241,13 +241,21 @@ def execute_create(
         for idx, file_path in enumerate(files_to_summarize, 1):
             click.echo(f"  [{idx}/{len(files_to_summarize)}] Summarizing {file_path}...")
 
-            # Check if we have a cached summary
+            # Check if we have a cached summary with matching content hash
             cached_summary = get_summary(file_path, repo_path)
-            if cached_summary:
-                click.echo(f"      ✓ Using cached summary from {cached_summary['timestamp']}")
+            current_content_hash = get_file_content_hash(file_path, repo_path)
+
+            if cached_summary and cached_summary.get("content_hash") == current_content_hash:
+                # Content unchanged - use cached summary
+                click.echo("      ✓ Using cached summary (content unchanged)")
                 file_summaries[file_path] = cached_summary["summary"]
             else:
-                # Generate new summary
+                # Content changed or no cache - generate new summary
+                if cached_summary:
+                    click.echo("      🔄 Content changed - regenerating summary")
+                else:
+                    click.echo("      🆕 No cached summary - generating new")
+
                 file_content = source_files[file_path]
                 summary, prompt_name, prompt_version = summarize_file(file_path, file_content)
 
@@ -286,10 +294,9 @@ def execute_create(
         click.echo("Determining which source files are relevant for this document (using LLM)...")
 
         from doc_evergreen.core.relevancy import add_relevancy_score
+        from doc_evergreen.core.relevancy import get_relevancy_score
 
         for file_path in file_summaries:
-            click.echo(f"  Scoring: {file_path}")
-
             # Get the most recent summary
             summary_data = get_summary(file_path, repo_path)
 
@@ -297,28 +304,54 @@ def execute_create(
                 file_summary = summary_data["summary"]
                 summary_timestamp = summary_data["timestamp"]
 
-                # Score relevancy
-                explanation, score = score_file_relevancy(file_path, file_summary, about)
+                # Check if we have a cached relevancy score for this summary
+                cached_relevancy = get_relevancy_score(file_path, repo_path, doc_key)
 
-                # Store relevancy score
-                prompt_name = "score_relevancy"
-                prompt_version = get_prompt_version(prompt_name)
+                if (
+                    cached_relevancy
+                    and cached_relevancy.get("doc_description") == about
+                    and cached_relevancy.get("file_summary", {}).get("version") == summary_timestamp
+                ):
+                    # Summary unchanged and same doc description - use cached relevancy
+                    explanation = cached_relevancy["relevancy_explanation"]
+                    score = cached_relevancy["relevancy_score"]
+                    relevancy_timestamp = cached_relevancy["timestamp"]
 
-                relevancy_timestamp = add_relevancy_score(
-                    file_path=file_path,
-                    doc_description=about,
-                    relevancy_explanation=explanation,
-                    relevancy_score=score,
-                    summary_text=file_summary,
-                    summary_timestamp=summary_timestamp,
-                    repo_path=repo_path,
-                    project_name=doc_key,
-                    prompt_name=prompt_name,
-                    prompt_version=prompt_version,
-                )
+                    click.echo(f"  {file_path}")
+                    click.echo("    ✓ Using cached relevancy (summary unchanged)")
+                    click.echo(f"    Score: {score}/10 - {explanation[:60]}...")
+                else:
+                    # Summary changed or no cache - re-score
+                    if cached_relevancy:
+                        click.echo(f"  {file_path}")
+                        click.echo("    🔄 Summary changed - rescoring relevancy")
+                    else:
+                        click.echo(f"  {file_path}")
+                        click.echo("    🆕 No cached relevancy - scoring")
+
+                    # Score relevancy
+                    explanation, score = score_file_relevancy(file_path, file_summary, about)
+
+                    # Store relevancy score
+                    prompt_name = "score_relevancy"
+                    prompt_version = get_prompt_version(prompt_name)
+
+                    relevancy_timestamp = add_relevancy_score(
+                        file_path=file_path,
+                        doc_description=about,
+                        relevancy_explanation=explanation,
+                        relevancy_score=score,
+                        summary_text=file_summary,
+                        summary_timestamp=summary_timestamp,
+                        repo_path=repo_path,
+                        project_name=doc_key,
+                        prompt_name=prompt_name,
+                        prompt_version=prompt_version,
+                    )
+
+                    click.echo(f"    Score: {score}/10 - {explanation[:60]}...")
 
                 relevancy_scores[file_path] = score
-                click.echo(f"    Score: {score}/10 - {explanation[:60]}...")
 
                 # Collect source file data for template storage
                 source_file_data.append(
@@ -329,7 +362,7 @@ def execute_create(
                             "explanation": explanation,
                             "score": score,
                             "timestamp": relevancy_timestamp,
-                            "prompt": {"name": prompt_name, "version": prompt_version},
+                            "prompt": {"name": "score_relevancy", "version": get_prompt_version("score_relevancy")},
                         },
                     }
                 )
@@ -563,6 +596,12 @@ def execute_create(
     # Get prompt version for generate_document
     generate_prompt_name = "generate_document"
     generate_prompt_version = get_prompt_version(generate_prompt_name)
+
+    # Get content hashes for source files
+    source_files_with_hashes = {}
+    for file_path in source_files_content:
+        content_hash = get_file_content_hash(file_path, repo_path)
+        source_files_with_hashes[file_path] = content_hash if content_hash else "no-hash"
 
     # Save document content to project directory with versioned metadata
     from doc_evergreen.core.project import save_generated_document

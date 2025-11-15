@@ -27,9 +27,12 @@ def cli() -> None:
 
       # Create with specific sources
       doc-evergreen create --about "API docs" --output docs/API.md --sources "src/**/*.py"
+
+      # Regenerate existing documentation
+      doc-evergreen regenerate docs/API.md
     """
     # This is a Click command group - the function body is not executed
-    # All functionality is in the subcommands (create)
+    # All functionality is in the subcommands (create, regenerate)
     return
 
 
@@ -111,6 +114,35 @@ def create(
             sources=sources_list,
             start_step=start_step,
         )
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("doc_path", type=str)
+def regenerate(doc_path: str) -> None:
+    """
+    Regenerate documentation when source files have been updated.
+
+    This command:
+    1. Checks if the document was previously generated
+    2. Compares current source file versions with those used in last generation
+    3. If any source files updated, regenerates summaries and document
+    4. Skips regeneration if no source files have changed
+
+    \b
+    Examples:
+      # Regenerate a document
+      doc-evergreen regenerate README.md
+
+      # Regenerate document in subdirectory
+      doc-evergreen regenerate docs/API.md
+    """
+    from doc_evergreen.commands.regenerate import execute_regenerate
+
+    try:
+        execute_regenerate(doc_path=doc_path)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
