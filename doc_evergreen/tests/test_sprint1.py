@@ -4,6 +4,7 @@ Tests for Sprint 1: Template Loading Functionality
 Following TDD RED phase - these tests define behavior before implementation exists.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -382,3 +383,105 @@ Use: mytool run"""
         assert "## Installation" in result or "Installation" in result
         assert "## Configuration" in result or "Configuration" in result
         assert "## Usage" in result or "Usage" in result
+
+
+class TestIntegration:
+    """End-to-end integration tests"""
+
+    @pytest.mark.skipif(
+        not os.environ.get("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY required for integration test"
+    )
+    def test_end_to_end_generation(self, tmp_path: Path, monkeypatch) -> None:
+        """
+        Given: Template file and source files exist
+        When: Complete generation pipeline runs
+        Then: Valid markdown documentation is produced
+
+        Testing Decision: Use real LLM to validate full integration
+        Rationale: POC must prove the entire pipeline works together
+        Trade-off: Slower test (~5-10s) but validates complete flow
+        """
+        # Arrange: Create template file
+        template_content = """# {{project_name}} Documentation
+
+## Overview
+Describe what this project does and why it exists.
+
+## Installation
+Provide installation instructions.
+
+## Configuration
+Explain how to configure the project.
+
+## Usage
+Show usage examples."""
+
+        template_file = tmp_path / "template.md"
+        template_file.write_text(template_content, encoding="utf-8")
+
+        # Arrange: Create source files
+        (tmp_path / "amplifier").mkdir()
+
+        readme_content = """# Amplifier
+A tool for amplifying development workflows with AI agents.
+
+## Features
+- Template-based documentation generation
+- Context-aware updates
+- Integration with Claude Code"""
+
+        (tmp_path / "README.md").write_text(readme_content, encoding="utf-8")
+
+        pyproject_content = """[project]
+name = "amplifier"
+version = "0.1.0"
+description = "AI-powered development workflow amplifier"
+"""
+        (tmp_path / "pyproject.toml").write_text(pyproject_content, encoding="utf-8")
+
+        init_content = """# Amplifier package
+__version__ = '0.1.0'
+"""
+        (tmp_path / "amplifier" / "__init__.py").write_text(init_content, encoding="utf-8")
+
+        agents_content = """# AI Agent Guide
+Instructions for AI agents working with this codebase."""
+        (tmp_path / "AGENTS.md").write_text(agents_content, encoding="utf-8")
+
+        # Mock working directory to use tmp_path
+        monkeypatch.chdir(tmp_path)
+
+        # Act: Step 1 - Load template
+        loaded_template = load_template(str(template_file))
+        assert loaded_template == template_content, "Template loading failed"
+
+        # Act: Step 2 - Gather context
+        gathered_context = gather_context()
+        assert "README.md" in gathered_context, "Context gathering failed"
+        assert "amplifier" in gathered_context.lower(), "Context should contain project name"
+
+        # Act: Step 3 - Generate documentation
+        generated_doc = generate_doc(template=loaded_template, context=gathered_context)
+
+        # Assert: Validate output is non-empty
+        assert isinstance(generated_doc, str)
+        assert len(generated_doc) > 0, "Generated doc should not be empty"
+
+        # Assert: Contains markdown structure
+        assert "#" in generated_doc, "Generated doc should contain markdown headers"
+
+        # Assert: Output differs from template (proves LLM processing)
+        assert generated_doc != template_content, "Generated doc should be processed, not echo template"
+
+        # Assert: Output references context information
+        # Should mention "amplifier" or "workflow" from context
+        generated_lower = generated_doc.lower()
+        assert any(term in generated_lower for term in ["amplifier", "workflow", "ai", "claude"]), (
+            "Generated doc should reference information from context"
+        )
+
+        # Assert: Output maintains template structure
+        # Should have major sections from template
+        assert any(section in generated_doc for section in ["Overview", "Installation", "Configuration", "Usage"]), (
+            "Generated doc should maintain template structure"
+        )
