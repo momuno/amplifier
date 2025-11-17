@@ -7,6 +7,8 @@ Following TDD RED phase - these tests define behavior before implementation exis
 from pathlib import Path
 
 import pytest
+
+from doc_evergreen.context import gather_context
 from doc_evergreen.template import load_template
 
 
@@ -110,3 +112,157 @@ More content here."""
         assert result == template_content
         assert "☕" in result
         assert "使用者" in result
+
+
+class TestContextGathering:
+    """Tests for context gathering functionality"""
+
+    def test_gather_context_includes_all_sources(self, tmp_path: Path, monkeypatch) -> None:
+        """
+        Given: All hardcoded source files exist with content
+        When: gather_context is called
+        Then: All source files are included in the returned context
+        """
+        # Arrange: Create test files matching SOURCES
+        sources = {
+            "README.md": "# Project README\n\nThis is the readme.",
+            "amplifier/cli.py": "# CLI module\ndef main():\n    pass",
+            "pyproject.toml": "[tool.poetry]\nname = 'amplifier'",
+            "AGENTS.md": "# AI Agent Guide\n\nAgent instructions here.",
+        }
+
+        # Create directory structure
+        (tmp_path / "amplifier").mkdir()
+        for filename, content in sources.items():
+            filepath = tmp_path / filename
+            filepath.write_text(content, encoding="utf-8")
+
+        # Mock the base directory to use tmp_path
+        monkeypatch.chdir(tmp_path)
+
+        # Act
+        result = gather_context()
+
+        # Assert: All filenames appear in result
+        for filename in sources:
+            assert filename in result, f"Expected {filename} to be in gathered context"
+
+        # Assert: All content appears in result
+        for content in sources.values():
+            assert content in result, "Expected content to be in gathered context"
+
+    def test_gather_context_format(self, tmp_path: Path, monkeypatch) -> None:
+        """
+        Given: Multiple source files exist
+        When: gather_context is called
+        Then: Content is formatted with clear file separators
+        """
+        # Arrange
+        sources = {"README.md": "# README content", "AGENTS.md": "# AGENTS content"}
+
+        for filename, content in sources.items():
+            filepath = tmp_path / filename
+            filepath.write_text(content, encoding="utf-8")
+
+        monkeypatch.chdir(tmp_path)
+
+        # Act
+        result = gather_context()
+
+        # Assert: File separators present
+        # Expected format: --- filename ---
+        assert "--- README.md ---" in result
+        assert "--- AGENTS.md ---" in result
+
+        # Assert: Separators come before content
+        readme_sep_pos = result.find("--- README.md ---")
+        readme_content_pos = result.find("# README content")
+        assert readme_sep_pos < readme_content_pos, "Separator should come before content"
+
+    def test_gather_context_content_preservation(self, tmp_path: Path, monkeypatch) -> None:
+        """
+        Given: Source files with various formatting (multiline, special chars)
+        When: gather_context is called
+        Then: All content is preserved exactly including whitespace and UTF-8
+        """
+        # Arrange
+        complex_content = """# Header
+
+Paragraph with content.
+
+- List item 1
+- List item 2
+
+Special chars: ☕ 使用者"""
+
+        readme_file = tmp_path / "README.md"
+        readme_file.write_text(complex_content, encoding="utf-8")
+
+        # Create minimal other files to satisfy SOURCES
+        (tmp_path / "amplifier").mkdir()
+        (tmp_path / "amplifier" / "cli.py").write_text("pass", encoding="utf-8")
+        (tmp_path / "pyproject.toml").write_text("name='test'", encoding="utf-8")
+        (tmp_path / "AGENTS.md").write_text("agents", encoding="utf-8")
+
+        monkeypatch.chdir(tmp_path)
+
+        # Act
+        result = gather_context()
+
+        # Assert: Exact content preserved
+        assert complex_content in result
+        assert result.count("\n") >= complex_content.count("\n")
+        assert "☕" in result
+        assert "使用者" in result
+
+    def test_gather_context_handles_missing_files(self, tmp_path: Path, monkeypatch) -> None:
+        """
+        Given: Some hardcoded source files are missing
+        When: gather_context is called
+        Then: Available files are included, missing files are skipped gracefully
+
+        Testing Decision: Skip missing files rather than fail.
+        Rationale: In real usage, some context files might be optional.
+        """
+        # Arrange: Create only some of the expected files
+        readme_file = tmp_path / "README.md"
+        readme_file.write_text("# README exists", encoding="utf-8")
+
+        # Don't create amplifier/cli.py, pyproject.toml, AGENTS.md
+
+        monkeypatch.chdir(tmp_path)
+
+        # Act
+        result = gather_context()
+
+        # Assert: Available file is included
+        assert "README.md" in result
+        assert "# README exists" in result
+
+        # Assert: Result is still valid (non-empty string)
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_gather_context_returns_single_string(self, tmp_path: Path, monkeypatch) -> None:
+        """
+        Given: Multiple source files exist
+        When: gather_context is called
+        Then: A single concatenated string is returned
+        """
+        # Arrange
+        (tmp_path / "amplifier").mkdir()
+        (tmp_path / "README.md").write_text("readme", encoding="utf-8")
+        (tmp_path / "amplifier" / "cli.py").write_text("cli", encoding="utf-8")
+        (tmp_path / "pyproject.toml").write_text("toml", encoding="utf-8")
+        (tmp_path / "AGENTS.md").write_text("agents", encoding="utf-8")
+
+        monkeypatch.chdir(tmp_path)
+
+        # Act
+        result = gather_context()
+
+        # Assert
+        assert isinstance(result, str)
+        assert len(result) > 0
+        # Should contain all content in one string
+        assert "readme" in result and "cli" in result and "toml" in result and "agents" in result
