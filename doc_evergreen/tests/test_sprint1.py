@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from doc_evergreen.context import gather_context
+from doc_evergreen.generator import generate_doc
 from doc_evergreen.template import load_template
 
 
@@ -266,3 +267,118 @@ Special chars: ☕ 使用者"""
         assert len(result) > 0
         # Should contain all content in one string
         assert "readme" in result and "init" in result and "toml" in result and "agents" in result
+
+
+class TestLLMGenerator:
+    """Tests for LLM-powered documentation generator"""
+
+    def test_generate_doc_returns_markdown(self) -> None:
+        """
+        Given: A template string and context string
+        When: generate_doc is called
+        Then: Returns a non-empty string containing markdown documentation
+
+        Testing Decision: Call real LLM to validate integration
+        Rationale: POC needs to prove end-to-end flow works with actual LLM
+        Trade-off: Slower test (~2-5s) but validates real behavior
+        """
+        # Arrange
+        template = """# {{project_name}}
+
+## Overview
+Describe the project purpose.
+
+## Installation
+Provide installation steps."""
+
+        context = """--- README.md ---
+# Amplifier
+A tool for amplifying development workflows.
+
+--- pyproject.toml ---
+[project]
+name = "amplifier"
+version = "0.1.0"
+"""
+
+        # Act
+        result = generate_doc(template=template, context=context)
+
+        # Assert: Returns non-empty string
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+        # Assert: Contains markdown structure (headers)
+        assert "#" in result
+
+        # Assert: Not just echoing template (shows LLM processing)
+        assert result != template
+
+    def test_generate_doc_uses_context_information(self) -> None:
+        """
+        Given: Template and context with specific project details
+        When: generate_doc is called
+        Then: Generated content references information from context
+
+        Testing Decision: Verify LLM uses context, not just template
+        Rationale: Core POC requirement - must synthesize template + context
+        """
+        # Arrange
+        template = """# Project Documentation
+
+## Name
+State the project name.
+
+## Purpose
+Explain what this project does."""
+
+        context = """--- README.md ---
+# DataProcessor
+A high-performance data processing pipeline.
+
+Processes CSV files and generates analytics reports."""
+
+        # Act
+        result = generate_doc(template=template, context=context)
+
+        # Assert: Contains project-specific information from context
+        # (LLM should mention DataProcessor or data processing)
+        result_lower = result.lower()
+        assert any(term in result_lower for term in ["dataprocessor", "data processing", "csv", "analytics"]), (
+            "Generated doc should reference information from context"
+        )
+
+    def test_generate_doc_maintains_template_structure(self) -> None:
+        """
+        Given: Template with clear section markers
+        When: generate_doc is called
+        Then: Generated content follows template structure
+
+        Testing Decision: Verify output respects template sections
+        Rationale: Documentation should follow provided template format
+        """
+        # Arrange
+        template = """# Documentation
+
+## Installation
+Installation steps here.
+
+## Configuration
+Configuration details here.
+
+## Usage
+Usage examples here."""
+
+        context = """--- README.md ---
+# MyTool
+Install with: pip install mytool
+Configure in config.yaml
+Use: mytool run"""
+
+        # Act
+        result = generate_doc(template=template, context=context)
+
+        # Assert: Major section headers present
+        assert "## Installation" in result or "Installation" in result
+        assert "## Configuration" in result or "Configuration" in result
+        assert "## Usage" in result or "Usage" in result
