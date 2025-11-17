@@ -126,7 +126,7 @@ class TestContextGathering:
         # Arrange: Create test files matching SOURCES
         sources = {
             "README.md": "# Project README\n\nThis is the readme.",
-            "amplifier/cli.py": "# CLI module\ndef main():\n    pass",
+            "amplifier/__init__.py": "# Amplifier package\n__version__ = '0.1.0'",
             "pyproject.toml": "[tool.poetry]\nname = 'amplifier'",
             "AGENTS.md": "# AI Agent Guide\n\nAgent instructions here.",
         }
@@ -200,7 +200,7 @@ Special chars: ☕ 使用者"""
 
         # Create minimal other files to satisfy SOURCES
         (tmp_path / "amplifier").mkdir()
-        (tmp_path / "amplifier" / "cli.py").write_text("pass", encoding="utf-8")
+        (tmp_path / "amplifier" / "__init__.py").write_text("pass", encoding="utf-8")
         (tmp_path / "pyproject.toml").write_text("name='test'", encoding="utf-8")
         (tmp_path / "AGENTS.md").write_text("agents", encoding="utf-8")
 
@@ -228,7 +228,7 @@ Special chars: ☕ 使用者"""
         readme_file = tmp_path / "README.md"
         readme_file.write_text("# README exists", encoding="utf-8")
 
-        # Don't create amplifier/cli.py, pyproject.toml, AGENTS.md
+        # Don't create amplifier/__init__.py, pyproject.toml, AGENTS.md
 
         monkeypatch.chdir(tmp_path)
 
@@ -252,7 +252,7 @@ Special chars: ☕ 使用者"""
         # Arrange
         (tmp_path / "amplifier").mkdir()
         (tmp_path / "README.md").write_text("readme", encoding="utf-8")
-        (tmp_path / "amplifier" / "cli.py").write_text("cli", encoding="utf-8")
+        (tmp_path / "amplifier" / "__init__.py").write_text("init", encoding="utf-8")
         (tmp_path / "pyproject.toml").write_text("toml", encoding="utf-8")
         (tmp_path / "AGENTS.md").write_text("agents", encoding="utf-8")
 
@@ -265,4 +265,4 @@ Special chars: ☕ 使用者"""
         assert isinstance(result, str)
         assert len(result) > 0
         # Should contain all content in one string
-        assert "readme" in result and "cli" in result and "toml" in result and "agents" in result
+        assert "readme" in result and "init" in result and "toml" in result and "agents" in result

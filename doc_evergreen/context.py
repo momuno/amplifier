@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Hardcoded source files to gather context from
 SOURCES = [
     "README.md",
-    "amplifier/cli.py",
+    "amplifier/__init__.py",
     "pyproject.toml",
     "AGENTS.md",
 ]
