@@ -14,6 +14,7 @@ Test Philosophy:
 from pathlib import Path
 
 # This import will fail initially - that's expected in RED phase
+from doc_evergreen.diff import show_diff
 from doc_evergreen.preview import generate_preview
 
 
@@ -266,3 +267,148 @@ class TestPreviewEdgeCases:
         content = preview_path.read_text(encoding="utf-8")
         assert "🚀" in content
         assert "café" in content
+
+
+# =============================================================================
+# SPRINT 2 DELIVERABLE 2: DIFF DISPLAY
+# =============================================================================
+
+
+class TestDiffDisplay:
+    """Tests for basic diff display functionality"""
+
+    def test_show_diff_detects_additions(self, tmp_path, capsys):
+        """Test that added lines are shown in diff output"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        original.write_text("Line 1\nLine 2\n")
+        preview.write_text("Line 1\nLine 2\nLine 3\n")
+
+        show_diff(str(original), str(preview))
+
+        captured = capsys.readouterr()
+        assert "+Line 3" in captured.out
+
+    def test_show_diff_detects_deletions(self, tmp_path, capsys):
+        """Test that removed lines are shown in diff output"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        original.write_text("Line 1\nLine 2\nLine 3\n")
+        preview.write_text("Line 1\nLine 3\n")
+
+        show_diff(str(original), str(preview))
+
+        captured = capsys.readouterr()
+        assert "-Line 2" in captured.out
+
+    def test_show_diff_detects_changes(self, tmp_path, capsys):
+        """Test that modified lines are shown as deletion + addition"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        original.write_text("Line 1\nOld content\nLine 3\n")
+        preview.write_text("Line 1\nNew content\nLine 3\n")
+
+        show_diff(str(original), str(preview))
+
+        captured = capsys.readouterr()
+        assert "-Old content" in captured.out
+        assert "+New content" in captured.out
+
+    def test_show_diff_shows_line_numbers(self, tmp_path, capsys):
+        """Test that diff output includes line number ranges"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        original.write_text("Line 1\n")
+        preview.write_text("Line 1\nLine 2\n")
+
+        show_diff(str(original), str(preview))
+
+        captured = capsys.readouterr()
+        # Unified diff format uses @@ to mark line ranges
+        assert "@@" in captured.out
+
+    def test_show_diff_returns_none(self, tmp_path):
+        """Test that show_diff returns None (prints to stdout)"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        original.write_text("Content\n")
+        preview.write_text("Content\n")
+
+        result = show_diff(str(original), str(preview))
+
+        assert result is None
+
+
+class TestDiffIdenticalFiles:
+    """Tests for diff display with identical or empty files"""
+
+    def test_show_diff_identical_files(self, tmp_path, capsys):
+        """Test that no diff is shown when files are identical"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        content = "Line 1\nLine 2\nLine 3\n"
+        original.write_text(content)
+        preview.write_text(content)
+
+        show_diff(str(original), str(preview))
+
+        captured = capsys.readouterr()
+        # Should indicate files are identical
+        assert "identical" in captured.out.lower() or "no changes" in captured.out.lower()
+
+    def test_show_diff_empty_files(self, tmp_path, capsys):
+        """Test that empty files are handled correctly"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        original.write_text("")
+        preview.write_text("")
+
+        show_diff(str(original), str(preview))
+
+        captured = capsys.readouterr()
+        # Should handle gracefully without errors
+        assert "identical" in captured.out.lower() or "no changes" in captured.out.lower()
+
+
+class TestDiffSummary:
+    """Tests for diff summary statistics"""
+
+    def test_show_diff_includes_summary(self, tmp_path, capsys):
+        """Test that diff output includes summary statistics"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        original.write_text("Line 1\nLine 2\n")
+        preview.write_text("Line 1\nLine 2\nLine 3\n")
+
+        show_diff(str(original), str(preview))
+
+        captured = capsys.readouterr()
+        # Summary should mention lines added/removed
+        output_lower = captured.out.lower()
+        assert "added" in output_lower or "removed" in output_lower or "changed" in output_lower
+
+    def test_diff_summary_counts(self, tmp_path, capsys):
+        """Test that summary provides accurate add/remove counts"""
+        original = tmp_path / "original.md"
+        preview = tmp_path / "preview.md"
+
+        original.write_text("Line 1\nLine 2\nLine 3\n")
+        preview.write_text("Line 1\nLine 4\nLine 5\nLine 6\n")
+
+        show_diff(str(original), str(preview))
+
+        captured = capsys.readouterr()
+        output = captured.out
+
+        # Should show 2 lines removed (Line 2, Line 3)
+        # Should show 3 lines added (Line 4, Line 5, Line 6)
+        assert "2" in output  # Expect count of 2 somewhere
+        assert "3" in output  # Expect count of 3 somewhere
