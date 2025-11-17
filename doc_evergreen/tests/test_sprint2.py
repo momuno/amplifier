@@ -412,3 +412,118 @@ class TestDiffSummary:
         # Should show 3 lines added (Line 4, Line 5, Line 6)
         assert "2" in output  # Expect count of 2 somewhere
         assert "3" in output  # Expect count of 3 somewhere
+
+
+# =============================================================================
+# SPRINT 2 DELIVERABLE 3: FILE OPERATIONS
+# =============================================================================
+
+
+class TestFileOperations:
+    """Tests for file operations module (accept/reject changes)"""
+
+    def test_accept_changes_overwrites_original(self, tmp_path):
+        """
+        Given: Original file with old content and preview with new content
+        When: accept_changes is called
+        Then: Original file contains preview content
+        """
+        original = tmp_path / "original.md"
+        preview = tmp_path / "original.preview.md"
+
+        original.write_text("old content")
+        preview.write_text("new content")
+
+        from doc_evergreen.file_ops import accept_changes
+
+        accept_changes(original, preview)
+
+        assert original.read_text() == "new content"
+
+    def test_accept_changes_deletes_preview(self, tmp_path):
+        """
+        Given: Original and preview files exist
+        When: accept_changes is called
+        Then: Preview file is removed
+        """
+        original = tmp_path / "original.md"
+        preview = tmp_path / "original.preview.md"
+
+        original.write_text("old content")
+        preview.write_text("new content")
+
+        from doc_evergreen.file_ops import accept_changes
+
+        accept_changes(original, preview)
+
+        assert not preview.exists()
+
+    def test_accept_preserves_file_metadata(self, tmp_path):
+        """
+        Given: Preview file with specific metadata
+        When: accept_changes is called
+        Then: Original preserves preview's modification time
+        """
+        import os
+        import time
+
+        original = tmp_path / "original.md"
+        preview = tmp_path / "original.preview.md"
+
+        original.write_text("old content")
+        preview.write_text("new content")
+
+        # Set preview to a known past time
+        past_time = time.time() - 3600
+        os.utime(preview, (past_time, past_time))
+
+        from doc_evergreen.file_ops import accept_changes
+
+        accept_changes(original, preview)
+
+        assert abs(original.stat().st_mtime - past_time) < 1
+
+    def test_reject_changes_keeps_original(self, tmp_path):
+        """
+        Given: Original file with content and preview exists
+        When: reject_changes is called
+        Then: Original file content is unchanged
+        """
+        original = tmp_path / "original.md"
+        preview = tmp_path / "original.preview.md"
+
+        original.write_text("original content")
+        preview.write_text("preview content")
+
+        from doc_evergreen.file_ops import reject_changes
+
+        reject_changes(preview)
+
+        assert original.read_text() == "original content"
+
+    def test_reject_changes_deletes_preview(self, tmp_path):
+        """
+        Given: Preview file exists
+        When: reject_changes is called
+        Then: Preview file is removed
+        """
+        preview = tmp_path / "file.preview.md"
+        preview.write_text("preview content")
+
+        from doc_evergreen.file_ops import reject_changes
+
+        reject_changes(preview)
+
+        assert not preview.exists()
+
+    def test_reject_with_missing_preview(self, tmp_path):
+        """
+        Given: Preview file does not exist
+        When: reject_changes is called
+        Then: No error is raised
+        """
+        preview = tmp_path / "nonexistent.preview.md"
+
+        from doc_evergreen.file_ops import reject_changes
+
+        reject_changes(preview)  # Should not raise
