@@ -78,18 +78,23 @@ class TestCLIBasicUsage:
             # Should show diff markers
             assert "---" in result.output or "+++" in result.output or "Old Content" in result.output
 
-    def test_cli_basic_usage_prompts_for_review(self):
+    @patch("doc_evergreen.cli.generate_preview")
+    @patch("doc_evergreen.cli.gather_context")
+    def test_cli_basic_usage_prompts_for_review(self, mock_gather_context, mock_generate_preview):
         """
         Given: A target file exists
         When: Running 'doc-update README.md'
         Then: Should prompt user to accept/reject changes
         """
+        # Mock context to return test data
+        mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
+
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Old Content")
-            Path(".templates").mkdir()
-            Path(".templates/readme.md").write_text("# New Content")
+            Path("README.preview.md").write_text("# New Content")
 
             # Act - simulate user rejecting changes
             result = runner.invoke(doc_update, ["README.md"], input="n\n")
@@ -200,18 +205,23 @@ class TestCLIOptions:
             new_content = Path("README.md").read_text()
             assert new_content != old_content
 
-    def test_cli_no_review_flag_completes_without_interaction(self):
+    @patch("doc_evergreen.cli.generate_preview")
+    @patch("doc_evergreen.cli.gather_context")
+    def test_cli_no_review_flag_completes_without_interaction(self, mock_gather_context, mock_generate_preview):
         """
         Given: --no-review flag is used
         When: Running command
         Then: Should complete without any user interaction
         """
+        # Mock context to return test data
+        mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
+
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Old")
-            Path(".templates").mkdir()
-            Path(".templates/readme.md").write_text("# New")
+            Path("README.preview.md").write_text("# New")
 
             # Act - no input provided
             result = runner.invoke(doc_update, ["README.md", "--no-review"])
@@ -256,19 +266,24 @@ class TestCLIOptions:
             "example" in result.output.lower() or "README.md" in result.output or "target_file" in result.output.lower()
         )
 
-    def test_cli_template_auto_detection(self):
+    @patch("doc_evergreen.cli.generate_preview")
+    @patch("doc_evergreen.cli.gather_context")
+    def test_cli_template_auto_detection(self, mock_gather_context, mock_generate_preview):
         """
         Given: Template exists matching target filename
         When: Running 'doc-update CONTRIBUTING.md' (no --template)
         Then: Should auto-detect 'contributing' template
         """
+        # Mock context to return test data
+        mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("CONTRIBUTING.preview.md")
+
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("CONTRIBUTING.md").write_text("# Old Contributing")
-            Path(".templates").mkdir()
             contributing_content = "# Contributing Template Content"
-            Path(".templates/contributing.md").write_text(contributing_content)
+            Path("CONTRIBUTING.preview.md").write_text(contributing_content)
 
             # Act
             result = runner.invoke(doc_update, ["CONTRIBUTING.md", "--no-review"])
@@ -358,17 +373,21 @@ class TestCLIErrorHandling:
             assert result.exit_code != 0
             assert "available" in result.output.lower() or "readme" in result.output.lower()
 
-    def test_cli_nonexistent_target_file_shows_error(self):
+    @patch("doc_evergreen.cli.generate_preview")
+    @patch("doc_evergreen.cli.gather_context")
+    def test_cli_nonexistent_target_file_shows_error(self, mock_gather_context, mock_generate_preview):
         """
         Given: Target file does not exist
         When: Running 'doc-update MISSING.md'
         Then: Should show clear error
         """
+        # Mock context to return test data
+        mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("MISSING.preview.md")
+
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Arrange
-            Path(".templates").mkdir()
-            Path(".templates/readme.md").write_text("# Template")
+            # Arrange - no target file exists
 
             # Act
             result = runner.invoke(doc_update, ["MISSING.md"])
@@ -385,18 +404,23 @@ class TestCLIErrorHandling:
 class TestCLIExitCodes:
     """Exit code tests for automation"""
 
-    def test_cli_success_exits_zero(self):
+    @patch("doc_evergreen.cli.generate_preview")
+    @patch("doc_evergreen.cli.gather_context")
+    def test_cli_success_exits_zero(self, mock_gather_context, mock_generate_preview):
         """
         Given: Command completes successfully
         When: Running doc-update
         Then: Should exit with code 0
         """
+        # Mock context to return test data
+        mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
+
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Content")
-            Path(".templates").mkdir()
-            Path(".templates/readme.md").write_text("# Template")
+            Path("README.preview.md").write_text("# Template")
 
             # Act
             result = runner.invoke(doc_update, ["README.md", "--no-review"])
@@ -420,18 +444,23 @@ class TestCLIExitCodes:
             # Assert
             assert result.exit_code != 0
 
-    def test_cli_user_rejection_exits_zero(self):
+    @patch("doc_evergreen.cli.generate_preview")
+    @patch("doc_evergreen.cli.gather_context")
+    def test_cli_user_rejection_exits_zero(self, mock_gather_context, mock_generate_preview):
         """
         Given: User rejects changes
         When: Running doc-update and answering 'n'
         Then: Should exit with code 0 (successful cancellation)
         """
+        # Mock context to return test data
+        mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
+
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Content")
-            Path(".templates").mkdir()
-            Path(".templates/readme.md").write_text("# Template")
+            Path("README.preview.md").write_text("# Template")
 
             # Act - user says 'n'
             result = runner.invoke(doc_update, ["README.md"], input="n\n")
@@ -443,8 +472,9 @@ class TestCLIExitCodes:
 class TestCLIIntegration:
     """End-to-end integration tests"""
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    def test_cli_full_workflow_with_acceptance(self, mock_gather_context):
+    def test_cli_full_workflow_with_acceptance(self, mock_gather_context, mock_generate_preview):
         """
         Given: Complete setup (file, template, context)
         When: Running full workflow and accepting changes
@@ -452,12 +482,14 @@ class TestCLIIntegration:
         """
         # Mock context to return test data
         mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             old_content = "# Old README\n\nOld description."
             Path("README.md").write_text(old_content)
+            Path("README.preview.md").write_text("# Test Project\n\nTest description")
 
             # Act - user accepts, uses built-in templates
             result = runner.invoke(doc_update, ["README.md"], input="y\n")
@@ -468,19 +500,24 @@ class TestCLIIntegration:
             new_content = Path("README.md").read_text()
             assert new_content != old_content
 
-    def test_cli_full_workflow_with_rejection(self):
+    @patch("doc_evergreen.cli.generate_preview")
+    @patch("doc_evergreen.cli.gather_context")
+    def test_cli_full_workflow_with_rejection(self, mock_gather_context, mock_generate_preview):
         """
         Given: Complete setup
         When: Running full workflow and rejecting changes
         Then: Should show preview but not modify file
         """
+        # Mock context to return test data
+        mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
+
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             old_content = "# Old README"
             Path("README.md").write_text(old_content)
-            Path(".templates").mkdir()
-            Path(".templates/readme.md").write_text("# New Template")
+            Path("README.preview.md").write_text("# New Template")
 
             # Act - user rejects
             result = runner.invoke(doc_update, ["README.md"], input="n\n")
@@ -491,8 +528,9 @@ class TestCLIIntegration:
             current_content = Path("README.md").read_text()
             assert current_content == old_content
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    def test_cli_automated_workflow(self, mock_gather_context):
+    def test_cli_automated_workflow(self, mock_gather_context, mock_generate_preview):
         """
         Given: Automated environment (no user interaction)
         When: Running with --no-review flag
@@ -503,12 +541,18 @@ class TestCLIIntegration:
 
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Arrange
+            # Test first file
             Path("README.md").write_text("# Old")
-            Path("CONTRIBUTING.md").write_text("# Old Contributing")
+            Path("README.preview.md").write_text("# Test Project\n\nTest description")
+            mock_generate_preview.return_value = Path("README.preview.md")
 
-            # Act - process both files, uses built-in templates
             result1 = runner.invoke(doc_update, ["README.md", "--no-review"])
+
+            # Test second file (separate filesystem context)
+            Path("CONTRIBUTING.md").write_text("# Old Contributing")
+            Path("CONTRIBUTING.preview.md").write_text("# Contributing Guide\n\nTest description")
+            mock_generate_preview.return_value = Path("CONTRIBUTING.preview.md")
+
             result2 = runner.invoke(doc_update, ["CONTRIBUTING.md", "--no-review"])
 
             # Assert
@@ -544,8 +588,9 @@ class TestCLIIntegration:
             # Assert
             mock_load_template.assert_called_once()
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    def test_cli_respects_template_directory_structure(self, mock_gather_context):
+    def test_cli_respects_template_directory_structure(self, mock_gather_context, mock_generate_preview):
         """
         Given: Templates in .templates/ directory
         When: Running CLI
@@ -553,11 +598,13 @@ class TestCLIIntegration:
         """
         # Mock context to return test data
         mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Old")
+            Path("README.preview.md").write_text("# Test Project\n\nTest description")
 
             # Act - uses built-in templates
             result = runner.invoke(doc_update, ["README.md", "--no-review"])
