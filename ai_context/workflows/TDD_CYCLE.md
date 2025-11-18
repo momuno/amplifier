@@ -488,7 +488,104 @@ Before marking sprint complete:
 - [ ] Learning goal achieved
 - [ ] Sprint deliverable working
 - [ ] All commits have passing tests
+- [ ] **Post-sprint cleanup completed** (see below)
 - [ ] Ready for next sprint
+
+### Post-Sprint Cleanup Phase
+
+**Purpose**: Remove obsolete code and ensure only relevant context remains.
+
+After sprint deliverable is complete and working:
+
+1. **Identify obsolete files**:
+   - Files from earlier sprints that have been replaced
+   - Old template/prototype files no longer used
+   - Temporary test fixtures that served their purpose
+
+2. **Remove replaced functions/classes**:
+   - Functions that new sprint code supersedes
+   - Classes that have been refactored into better versions
+   - Utilities that are now redundant
+
+3. **Clean up imports**:
+   - Remove unused imports
+   - Update dependencies if packages no longer needed
+   - Consolidate duplicate imports
+
+4. **Remove test artifacts**:
+   - Leftover mock objects from experiments
+   - Unused test fixtures
+   - Commented-out test code
+
+5. **Verify nothing breaks**:
+   - Run full test suite after cleanup
+   - Ensure all tests still pass
+   - Check that no files are accidentally importing removed code
+
+6. **Document cleanup in commit**:
+   ```
+   chore: post-sprint cleanup for Sprint [N]
+
+   Removed obsolete files:
+   - old_file_1.py (replaced by new implementation)
+   - old_file_2.py (functionality now in main module)
+
+   Cleaned up:
+   - Unused imports across modules
+   - Leftover test mocks
+   - Temporary fixtures
+
+   All [N] tests still passing after cleanup.
+   ```
+
+**Example cleanup scenarios**:
+
+**Scenario 1: Sprint replaces proof-of-concept**
+```
+Sprint 1 created: basic_generator.py (POC)
+Sprint 3 created: template_manager.py (production)
+
+Cleanup: Remove basic_generator.py, update tests
+```
+
+**Scenario 2: Consolidated utilities**
+```
+Sprint 1 created: file_reader.py
+Sprint 2 created: file_writer.py
+Sprint 3 created: file_ops.py (combines both)
+
+Cleanup: Remove file_reader.py and file_writer.py
+```
+
+**Scenario 3: Test evolution**
+```
+Sprint 1: Used mock LLM calls
+Sprint 2: Created proper test fixtures
+Sprint 3: Improved mocking with @patch decorators
+
+Cleanup: Remove old mock utilities, update all tests to new pattern
+```
+
+**Using the `post-task-cleanup` agent**:
+
+The orchestrator can delegate cleanup to the `post-task-cleanup` agent:
+
+```
+After sprint deliverable complete:
+1. Invoke post-task-cleanup agent
+2. Agent reviews git status to see all changes
+3. Identifies files that may be obsolete
+4. Proposes cleanup actions
+5. Removes unnecessary files/code
+6. Verifies tests still pass
+7. Creates cleanup commit
+```
+
+The agent specializes in:
+- Detecting temporary artifacts
+- Identifying replaced functionality
+- Ensuring no accidental breakage
+- Following project simplicity principles
 
 ---
 
@@ -598,6 +695,7 @@ Before marking sprint complete:
 
 **After this workflow**:
 - Sprint deliverable complete
+- **Post-sprint cleanup performed** (remove obsolete files/code)
 - Review what was learned
 - Adjust remaining sprints if needed
 - Start next sprint with `/tdd-cycle [next-sprint]`

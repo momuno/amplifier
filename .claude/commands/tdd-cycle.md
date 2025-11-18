@@ -34,6 +34,14 @@ Implement sprint features using Test-Driven Development with agent coordination.
 4. Commit on green
 5. Next test
 
+**Post-sprint cleanup:**
+1. Review codebase for obsolete files
+2. Remove functions/classes replaced by sprint work
+3. Clean up unused imports and dependencies
+4. Remove any leftover test mocks or fixtures
+5. Ensure no irrelevant context remains
+6. Final commit with cleanup changes
+
 **Outputs:**
 - Test files (written first)
 - Implementation code (minimal, passes tests)
