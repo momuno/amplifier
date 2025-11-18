@@ -25,8 +25,9 @@ from doc_evergreen.cli import doc_update
 class TestCLIBasicUsage:
     """Core CLI functionality tests"""
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    def test_cli_basic_usage_shows_preview(self, mock_gather_context):
+    def test_cli_basic_usage_shows_preview(self, mock_gather_context, mock_generate_preview):
         """
         Given: A target file exists
         When: Running 'doc-update README.md'
@@ -34,20 +35,25 @@ class TestCLIBasicUsage:
         """
         # Mock context gathering to return test data
         mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        # Mock preview generation to return a preview path
+        mock_generate_preview.return_value = Path("README.preview.md")
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Old Content\n\nOld description.")
+            # Create the preview file that the mock returns
+            Path("README.preview.md").write_text("# Test Project\n\nTest description")
 
             # Act - uses built-in templates from doc_evergreen/templates/
-            result = runner.invoke(doc_update, ["README.md"])
+            result = runner.invoke(doc_update, ["README.md"], input="n\n")
 
             # Assert
             assert result.exit_code == 0
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    def test_cli_basic_usage_shows_diff(self, mock_gather_context):
+    def test_cli_basic_usage_shows_diff(self, mock_gather_context, mock_generate_preview):
         """
         Given: A target file exists
         When: Running 'doc-update README.md'
@@ -55,14 +61,17 @@ class TestCLIBasicUsage:
         """
         # Mock context to return test data
         mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        # Mock preview generation
+        mock_generate_preview.return_value = Path("README.preview.md")
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Old Content")
+            Path("README.preview.md").write_text("# Test Project\n\nTest description")
 
             # Act - uses built-in templates
-            result = runner.invoke(doc_update, ["README.md"])
+            result = runner.invoke(doc_update, ["README.md"], input="n\n")
 
             # Assert
             assert result.exit_code == 0
@@ -93,8 +102,9 @@ class TestCLIBasicUsage:
 class TestCLIOptions:
     """Option flag tests"""
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    def test_cli_with_explicit_template(self, mock_gather_context):
+    def test_cli_with_explicit_template(self, mock_gather_context, mock_generate_preview):
         """
         Given: Multiple templates exist
         When: Running 'doc-update README.md --template contributing'
@@ -102,14 +112,16 @@ class TestCLIOptions:
         """
         # Mock context to return test data
         mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Project")
+            Path("README.preview.md").write_text("# Contributing\n\nTest description")
 
             # Act - uses built-in templates
-            result = runner.invoke(doc_update, ["README.md", "--template", "contributing"])
+            result = runner.invoke(doc_update, ["README.md", "--template", "contributing"], input="n\n")
 
             # Assert
             assert result.exit_code == 0
@@ -158,8 +170,9 @@ class TestCLIOptions:
             assert "Accept" not in result.output  # No review prompt
             assert "Generated preview" not in result.output  # No processing
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    def test_cli_no_review_flag_accepts_automatically(self, mock_gather_context):
+    def test_cli_no_review_flag_accepts_automatically(self, mock_gather_context, mock_generate_preview):
         """
         Given: --no-review flag is used
         When: Running 'doc-update README.md --no-review'
@@ -167,19 +180,22 @@ class TestCLIOptions:
         """
         # Mock context to return test data
         mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             old_content = "# Old Content"
             Path("README.md").write_text(old_content)
+            Path("README.preview.md").write_text("# Test Project\n\nTest description")
 
             # Act - uses built-in templates
             result = runner.invoke(doc_update, ["README.md", "--no-review"])
 
             # Assert
             assert result.exit_code == 0
-            assert "Accept" not in result.output  # No prompt
+            assert "Accepted" in result.output  # Should show success message
+            assert "Accept changes?" not in result.output  # No prompt
             # File should be updated
             new_content = Path("README.md").read_text()
             assert new_content != old_content
@@ -502,9 +518,10 @@ class TestCLIIntegration:
             assert Path("README.md").read_text() != "# Old"
             assert Path("CONTRIBUTING.md").read_text() != "# Old Contributing"
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    @patch("doc_evergreen.template_manager.load_template")
-    def test_cli_uses_template_manager(self, mock_load_template, mock_gather_context):
+    @patch("doc_evergreen.cli.load_template")
+    def test_cli_uses_template_manager(self, mock_load_template, mock_gather_context, mock_generate_preview):
         """
         Given: Templates exist
         When: Running CLI command
@@ -513,11 +530,13 @@ class TestCLIIntegration:
         # Mock context and template loading
         mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
         mock_load_template.return_value = "# Mocked Template"
+        mock_generate_preview.return_value = Path("README.preview.md")
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Content")
+            Path("README.preview.md").write_text("# Test Project")
 
             # Act
             runner.invoke(doc_update, ["README.md", "--no-review"])
@@ -552,8 +571,9 @@ class TestCLIIntegration:
 class TestCLIShortOptions:
     """Short option flag tests"""
 
+    @patch("doc_evergreen.cli.generate_preview")
     @patch("doc_evergreen.cli.gather_context")
-    def test_cli_template_short_option(self, mock_gather_context):
+    def test_cli_template_short_option(self, mock_gather_context, mock_generate_preview):
         """
         Given: Template option has short form
         When: Running 'doc-update README.md -t contributing'
@@ -561,14 +581,16 @@ class TestCLIShortOptions:
         """
         # Mock context to return test data
         mock_gather_context.return_value = "project_name: Test Project\ndescription: Test description"
+        mock_generate_preview.return_value = Path("README.preview.md")
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Arrange
             Path("README.md").write_text("# Content")
+            Path("README.preview.md").write_text("# Contributing Guide")
 
             # Act - uses built-in templates
-            result = runner.invoke(doc_update, ["README.md", "-t", "contributing"])
+            result = runner.invoke(doc_update, ["README.md", "-t", "contributing"], input="n\n")
 
             # Assert
             assert result.exit_code == 0

@@ -154,108 +154,141 @@ claude
 
 ## Core Concepts
 
-Amplifier transforms how you work with AI by making expertise reusable and composable. At its heart are three key concepts:
+Amplifier is built on the principle that **expertise can be captured as thinking processes**. Instead of writing code, you describe how you mentally approach a task—the questions you ask, the criteria you use, the order of operations. Amplifier translates these "metacognitive recipes" into executable tools.
 
-**Metacognitive Recipes** - These are step-by-step descriptions of how an expert thinks through a task. Instead of writing code, you describe the thinking process: "First analyze the problem, then consider alternatives, evaluate trade-offs, make a decision, and finally validate the approach." Amplifier turns these thinking patterns into executable tools.
+**Key concepts:**
 
-**Tool Composition** - As you create tools, they become building blocks for more sophisticated automation. A "Research Synthesizer" might use a "Web Scraper" tool, which uses a "Content Extractor" tool. Each tool focuses on one thing, but they combine to handle complex workflows.
+- **Metacognitive Recipes**: Step-by-step descriptions of expert thinking processes that guide task execution
+- **Tool Composition**: Tools build on each other—new tools can use existing tools as building blocks
+- **Compounding Automation**: As your tool library grows, complex workflows become easier to create
+- **Human-in-the-Loop**: Tools can request human feedback at decision points, combining AI capabilities with human judgment
+- **Context Persistence**: Project-specific guidance stored in AGENTS.md preserves context across sessions
 
-**Compounding Intelligence** - Every tool you create makes the next one easier to build. Your library of specialized tools grows into a personalized automation system that understands your domain, your preferences, and your way of working. The system gets smarter as you use it.
+The system is designed for **iterative refinement**: create a basic tool, use it, observe issues, provide feedback, and improve. Each iteration makes the tool more reliable and aligned with your needs.
 
 ## Architecture
 
-Amplifier is built on a modular architecture that emphasizes simplicity and extensibility:
+Amplifier follows a **modular, "bricks and studs" architecture** optimized for AI-assisted development:
 
 **Core Components:**
 
-- **Scenario System** (`scenarios/`) - Contains user-created tools organized by domain (blog writing, research, design). Each scenario is self-contained with its own prompts, logic, and documentation.
+- **Claude Code Integration**: Primary interface using Claude's AI capabilities with specialized agents
+- **Specialized Agents** (`.claude/agents/`): Domain experts for development, design, knowledge synthesis, and meta-operations
+- **Scenario System** (`scenarios/`): Maturity progression from experiments to production-ready tools
+- **Document-Driven Development** (`/ddd:*` commands): Workflow that ensures docs and code stay synchronized
+- **Git Worktrees**: Parallel development branches with isolated environments
+- **MCP Servers**: External tool integration (DeepWiki for repo documentation, Context7 for library docs)
 
-- **Agent Framework** (`.claude/agents/`) - Specialized AI agents for different tasks (architecture review, bug hunting, security analysis, design). Agents provide focused expertise and can be invoked by scenarios or used directly.
+**Design Philosophy:**
 
-- **Workflow Orchestration** - Document-Driven Development (DDD) commands that guide feature development from planning through implementation with built-in checkpoints and rollback capabilities.
+- **Ruthless Simplicity**: Minimal abstractions, KISS principle, avoid future-proofing
+- **Single Source of Truth**: Configuration lives in one authoritative location (`pyproject.toml`)
+- **Incremental Processing**: Save progress continuously, enable interruption without data loss
+- **Modular Bricks**: Self-contained components with clear contracts that can be regenerated
+- **Zero-BS Principle**: No stubs or placeholders—every function must work or not exist
 
-- **Development Tools** - Git worktree management for parallel development, transcript preservation across compaction events, enhanced status line for cost/time tracking, and automated context file generation.
+**Data Flow:**
 
-**Key Design Principles:**
+1. User describes thinking process (metacognitive recipe)
+2. Amplifier creates/refines tool using specialized agents
+3. Tool executes with human feedback loops at decision points
+4. Results saved incrementally with fixed filenames
+5. Context preserved in AGENTS.md and decision records
 
-- **Ruthless Simplicity** - Minimal abstractions, start simple and grow as needed, question all complexity
-- **Modular "Bricks & Studs"** - Self-contained modules with clear contracts that can be regenerated rather than patched
-- **Single Source of Truth** - Configuration lives in one authoritative location (typically `pyproject.toml`)
-- **Vertical Slices** - Complete end-to-end functionality before horizontal feature expansion
-
-**Technology Stack:**
-
-- Python 3.11+ with modern async patterns
-- `uv` for fast, reliable dependency management
-- Pydantic for data validation and settings
-- Claude Code SDK for AI interactions
-- MCP (Model Context Protocol) for service communication
+The architecture emphasizes **composability** (tools building on tools), **observability** (transcripts and decision records), and **maintainability** (simple, direct implementations over complex abstractions).
 
 ## Usage Examples
 
-### Creating a Custom Tool
+### Create a Custom Research Tool
 
 ```bash
-# Describe what you want in natural language
-/ultrathink-task Create a "Code Review Assistant" that:
-1. Reads a git diff
-2. Checks for common issues (security, performance, style)
-3. Suggests improvements with examples
-4. Prioritizes feedback by severity
+# Start Claude Code
+claude
 ```
 
-### Using Specialized Agents
+Tell Claude:
 
-```bash
-# Architecture review
-Use zen-architect to design a caching layer for the API
-
-# Security analysis
-Deploy security-guardian to review authentication implementation
-
-# Bug investigation
-Have bug-hunter investigate why login fails intermittently
+```
+/ultrathink-task Create a "Tech Trend Analyzer" that:
+1. Searches for recent articles on a technology topic
+2. Extracts key claims and supporting evidence
+3. Identifies emerging patterns and contradictions
+4. Asks me which patterns to investigate deeper
+5. Produces a summary report with my chosen focus areas
 ```
 
-### Document-Driven Development Workflow
+### Use Document-Driven Development
 
 ```bash
-# Complete feature development cycle
-/ddd:1-plan         # Design the feature architecture
-/ddd:2-docs         # Generate and refine documentation
-/ddd:3-code-plan    # Plan implementation approach
-/ddd:4-code         # Implement with tests
-/ddd:5-finish       # Clean up and finalize
+# Design a new feature
+/ddd:1-plan Create a user authentication system with JWT tokens
 
-# Each phase creates artifacts the next consumes
-# You control git operations with explicit approval
+# Generate/update documentation
+/ddd:2-docs
+
+# Review docs, iterate until approved, then plan implementation
+/ddd:3-code-plan
+
+# Implement and test
+/ddd:4-code
+
+# Finalize and clean up
+/ddd:5-finish
 ```
 
-### Parallel Development with Worktrees
+### Explore with Parallel Worktrees
 
 ```bash
-# Experiment with different approaches simultaneously
-make worktree feature-redis    # Try Redis for caching
-make worktree feature-memcache # Try Memcache in parallel
+# Try two authentication approaches simultaneously
+make worktree feature-jwt
+make worktree feature-oauth
 
-# Compare implementations
-make worktree-list             # See all active experiments
+# Work in each branch independently
+cd .worktrees/feature-jwt
+# ... develop JWT approach
 
-# Keep the winner
-make worktree-rm feature-redis # Remove the approach you don't want
+cd .worktrees/feature-oauth
+# ... develop OAuth approach
+
+# Compare and choose winner
+make worktree-list
+make worktree-rm feature-jwt
 ```
 
-### Design Intelligence
+### Use Specialized Design Agents
 
 ```bash
-# Create UI components with design system alignment
-/designer create a button component with hover states and accessibility
+# Start Claude Code
+claude
+```
 
-# Establish visual direction
-Use art-director to define the visual language for my dashboard
+Tell Claude:
 
-# Design system architecture
-Deploy design-system-architect to plan our component library structure
+```
+Use the component-designer agent to create a responsive navigation menu
+with mobile hamburger menu, accessibility features, and smooth transitions.
+```
+
+Or:
+
+```
+Deploy the art-director agent to establish a visual design system
+for my SaaS dashboard including color palette, typography scale,
+and spacing system.
+```
+
+### Restore Context After Compaction
+
+```bash
+# Claude Code auto-saves transcripts before compaction
+# Restore full conversation history anytime
+claude
+```
+
+In Claude:
+
+```
+/transcripts
 ```
 
 ## Development
@@ -263,7 +296,7 @@ Deploy design-system-architect to plan our component library structure
 ### Building and Testing
 
 ```bash
-# Install dependencies
+# Install all dependencies
 make install
 
 # Run all quality checks (format, lint, type-check)
@@ -273,74 +306,74 @@ make check
 make test
 
 # Run specific test
-uv run pytest tests/path/to/test_file.py::test_function -v
+uv run pytest tests/path/to/test_file.py::TestClass::test_function -v
 
-# Upgrade dependencies
+# Add new dependency (from project directory)
+uv add package-name
+
+# Add development dependency
+uv add --dev package-name
+
+# Upgrade dependency lock
 make lock-upgrade
 
 # Rebuild AI context files
 make ai-context-files
 ```
 
-**Adding Dependencies:**
+**After making code changes, always:**
 
-```bash
-# Navigate to project directory
-cd amplifier  # or your project subdirectory
-
-# Add runtime dependency
-uv add package-name
-
-# Add development dependency
-uv add --dev package-name
-```
-
-**Testing Philosophy:**
-- 60% unit tests for logic validation
-- 30% integration tests for component interaction
-- 10% end-to-end tests for critical user journeys
-- Emphasize manual testability as a design goal
+1. Run `make check` to catch syntax/linting/type errors
+2. Start the affected service to catch runtime errors
+3. Test basic functionality
+4. Stop the service to free up ports
 
 ### Project Structure
 
 ```
 amplifier/
-├── .claude/                    # Claude Code configuration
-│   ├── agents/                 # Specialized AI agents
-│   ├── commands/               # Custom slash commands
-│   └── tools/                  # Development utilities
-├── amplifier/                  # Core Python package
-│   └── __init__.py
-├── scenarios/                  # User-created tools
-│   ├── blog_writer/           # Example: blog writing automation
-│   └── README.md              # Scenario creation guide
-├── docs/                       # Documentation
+├── .claude/                  # Claude Code configuration
+│   ├── agents/              # Specialized AI agents
+│   ├── commands/            # Custom slash commands
+│   └── tools/               # Tool definitions and utilities
+├── amplifier/               # Core Python package
+│   └── __init__.py         # Package initialization
+├── scenarios/               # User-created tools (experimental → production)
+│   ├── README.md           # Philosophy and maturity model
+│   └── blog_writer/        # Example mature tool
+├── docs/                    # Documentation
 │   ├── CREATE_YOUR_OWN_TOOLS.md
+│   ├── document_driven_development/
+│   ├── design/             # Design intelligence docs
 │   ├── WORKTREE_GUIDE.md
-│   ├── THIS_IS_THE_WAY.md
-│   └── design/                # Design system documentation
-├── tests/                      # Test suite
-│   └── terminal_bench/        # Benchmark tests
-├── ai_working/                 # AI workspace
-│   ├── decisions/             # Architecture decision records
-│   └── DISCOVERIES.md         # Problem solutions database
-├── .data/                      # Generated data (gitignored)
-│   └── transcripts/           # Conversation history
-├── Makefile                    # Development commands
-├── pyproject.toml             # Python project configuration
-└── AGENTS.md                  # AI assistant guidance
+│   └── WORKSPACE_PATTERN.md
+├── tests/                   # Test suite
+│   └── terminal_bench/     # Benchmarking framework
+├── ai_working/              # AI workspace
+│   ├── decisions/          # Architecture decision records
+│   └── DISCOVERIES.md      # Problem/solution knowledge base
+├── .data/                   # Runtime data (git-ignored)
+│   └── transcripts/        # Conversation history exports
+├── pyproject.toml          # Python project config (single source of truth)
+├── ruff.toml               # Code formatter/linter config
+├── Makefile                # Development commands
+└── AGENTS.md               # AI assistant guidance
 ```
 
-**Key Directories:**
+**Key directories:**
 
-- **`.claude/`** - Claude Code extensions (agents, commands, tools)
-- **`scenarios/`** - Self-contained automation tools you create
-- **`amplifier/`** - Core Python library code
-- **`ai_working/`** - Context and decisions for AI assistants
-- **`.data/`** - Runtime generated files (not version controlled)
+- **`.claude/`**: All Claude Code customization—agents, commands, tools
+- **`scenarios/`**: Your custom tools progress from experiments to production-ready
+- **`amplifier/`**: Core reusable Python package
+- **`ai_working/`**: Preserves context across sessions (decisions, discoveries)
+- **`.data/`**: Runtime data excluded from version control
 
-**Philosophy:**
-Each directory represents a "brick" with clear boundaries and contracts. Tools can be regenerated from their specifications rather than manually edited.
+**Configuration hierarchy:**
+
+- `pyproject.toml` - Primary config (dependencies, tool settings)
+- `ruff.toml` - Formatting/linting rules
+- `.vscode/settings.json` - IDE settings that reference project config
+- `AGENTS.md` - AI behavioral guidance
 
 ## Contributing
 
@@ -368,4 +401,4 @@ This project may contain trademarks or logos for projects, products, or services
 - This is a learning resource, not production software
 - **No support provided** - See [SUPPORT.md](SUPPORT.md)
 
-Using permissive AI tools in your repository requires careful attention to security considerations and careful human supervision. Even with precautions, things can still go wrong. Use Amplifier with caution and at your own risk. This is a research demonstrator in early development that may change significantly.
+**Use this project at your own risk.** Amplifier is a research demonstrator in early development. Using permissive AI tools in your repository requires careful attention to security considerations and human supervision. Even with precautions, unexpected issues can occur.
