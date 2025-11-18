@@ -220,15 +220,15 @@ class TestTemplateDetection:
         assert detect_template("API.md") == "api-reference"
         assert detect_template("docs/API.md") == "api-reference"
 
-    def test_detect_template_from_changelog(self) -> None:
+    def test_detect_template_changelog_uses_default(self) -> None:
         """
-        Given: Target file is "CHANGELOG.md"
+        Given: Target file is "CHANGELOG.md" (no changelog template exists)
         When: detect_template is called
-        Then: Returns "changelog" template name
+        Then: Returns "readme" as default template
         """
         result = detect_template("CHANGELOG.md")
 
-        assert result == "changelog"
+        assert result == "readme"  # Falls back to default
 
     def test_detect_template_from_path_object(self) -> None:
         """

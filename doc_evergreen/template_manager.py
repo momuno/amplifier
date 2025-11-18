@@ -18,7 +18,6 @@ FILENAME_TO_TEMPLATE = {
     "readme.md": "readme",
     "contributing.md": "contributing",
     "api.md": "api-reference",
-    "changelog.md": "changelog",
 }
 
 
