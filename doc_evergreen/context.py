@@ -37,21 +37,30 @@ def read_source_file(path: str) -> str | None:
         return None
 
 
-def gather_context() -> str:
+def gather_context(sources: list[Path] | None = None) -> str:
     """
-    Gather context from hardcoded source files.
+    Gather context from source files.
 
-    Reads each file in SOURCES and concatenates their content into a single string,
-    with clear file separators. Missing files are skipped with a warning.
+    Reads each file in the provided sources list (or SOURCES if none provided)
+    and concatenates their content into a single string, with clear file separators.
+    Missing files are skipped with a warning.
+
+    Args:
+        sources: Optional list of Path objects to gather context from.
+                 If None, uses hardcoded SOURCES.
 
     Returns:
         str: Concatenated content from all available source files
     """
+    # Use provided sources or fall back to defaults
+    source_list = sources if sources is not None else [Path(s) for s in SOURCES]
+
     parts: list[str] = []
 
-    for source in SOURCES:
-        content = read_source_file(source)
+    for source in source_list:
+        source_str = str(source)
+        content = read_source_file(source_str)
         if content is not None:
-            parts.append(f"--- {source} ---\n{content}\n")
+            parts.append(f"--- {source_str} ---\n{content}\n")
 
     return "\n".join(parts)

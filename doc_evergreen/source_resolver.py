@@ -137,6 +137,7 @@ def resolve_sources(
     config_sources: list[str] | None = None,
     base_dir: Path | None = None,
     add_sources: str | None = None,
+    exclusions: list[str] | None = None,
 ) -> list[str]:
     """
     Resolve final source list from CLI, config, and defaults with priority handling.
@@ -147,6 +148,8 @@ def resolve_sources(
     3. Config sources (from config file) - used if no CLI sources
     4. Built-in defaults - used if nothing else specified
 
+    After resolving, applies exclusion patterns if provided.
+
     Given: CLI sources, config sources, and/or add sources
     When: Resolving which sources to use
     Then: Returns final list of source paths respecting priority
@@ -156,6 +159,7 @@ def resolve_sources(
         config_sources: Sources from config file
         base_dir: Base directory for resolving relative paths
         add_sources: Sources from CLI --add-sources (merges with config)
+        exclusions: Exclusion patterns to filter out files
 
     Returns:
         List of resolved source file paths
@@ -167,18 +171,22 @@ def resolve_sources(
     # Priority 1: CLI sources override everything
     if cli_sources:
         patterns = parse_source_spec(cli_sources)
-        return expand_glob_patterns(patterns, base_dir)
-
+        resolved = expand_glob_patterns(patterns, base_dir)
     # Priority 2: Add sources merge with config
-    if add_sources:
+    elif add_sources:
         patterns = parse_source_spec(add_sources)
         if config_sources:
             patterns.extend(config_sources)
-        return expand_glob_patterns(patterns, base_dir)
-
+        resolved = expand_glob_patterns(patterns, base_dir)
     # Priority 3: Config sources
-    if config_sources:
-        return expand_glob_patterns(config_sources, base_dir)
-
+    elif config_sources:
+        resolved = expand_glob_patterns(config_sources, base_dir)
     # Priority 4: Built-in defaults
-    return expand_glob_patterns(DEFAULT_PATTERNS, base_dir)
+    else:
+        resolved = expand_glob_patterns(DEFAULT_PATTERNS, base_dir)
+
+    # Apply exclusions if provided
+    if exclusions:
+        resolved = apply_exclusions(resolved, exclusions)
+
+    return resolved
