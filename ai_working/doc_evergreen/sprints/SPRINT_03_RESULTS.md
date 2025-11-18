@@ -71,21 +71,25 @@
 ### Test Results
 
 ```
-Sprint 3 Tests: 50 total
-- 41 passing (all non-LLM tests)
-- 9 require API key (CLI integration with generation)
+Sprint 3 Tests: 66 total - ALL PASSING ✅
+- 21 template manager tests (100% passing)
+- 25 CLI tests (100% passing - LLM calls mocked)
+- 20 config tests (100% passing)
 
 ✅ TestTemplateDiscovery (4 tests) - all passing
 ✅ TestTemplateLoading (6 tests) - all passing
 ✅ TestTemplateDetection (8 tests) - all passing
-✅ TestTemplateMetadata (4 tests) - all passing (total: 21/21)
+✅ TestTemplateMetadata (4 tests) - all passing
+Total: 21/21 template tests passing
 
 ✅ TestCLIOptions (6 tests) - all passing
 ✅ TestCLIErrorHandling (5 tests) - all passing
 ✅ TestCLIExitCodes (1 test) - all passing
-⏳ TestCLIBasicUsage (3 tests) - require API key
-⏳ TestCLIIntegration (5 tests) - require API key
-⏳ TestCLIShortOptions (1 test) - requires API key (total: 9/25 non-LLM)
+✅ TestCLIBasicUsage (3 tests) - all passing (mocked)
+✅ TestCLIIntegration (5 tests) - all passing (mocked)
+✅ TestCLIShortOptions (1 test) - all passing (mocked)
+✅ TestCLIFullWorkflow (4 tests) - all passing (mocked)
+Total: 25/25 CLI tests passing
 
 ✅ TestConfigLoading (4 tests) - all passing
 ✅ TestConfigDefaults (3 tests) - all passing
@@ -93,8 +97,11 @@ Sprint 3 Tests: 50 total
 ✅ TestConfigTemplateDirectory (2 tests) - all passing
 ✅ TestConfigLLMSettings (2 tests) - all passing
 ✅ TestConfigProjectRoot (4 tests) - all passing
-✅ TestConfigIntegration (2 tests) - all passing (total: 20/20)
+✅ TestConfigIntegration (2 tests) - all passing
+Total: 20/20 config tests passing
 ```
+
+**Note**: All CLI tests now use `@patch` decorators to mock LLM calls (`generate_preview` and `gather_context`), enabling fast, reliable testing without API dependencies. Tests complete in ~0.5 seconds.
 
 ### CLI Usage Examples
 
@@ -498,18 +505,42 @@ All code is clean, tested, and minimal. No refactoring needed.
 
 ---
 
+## Post-Sprint Cleanup (2025-01-18)
+
+After Sprint 3 completion, user review identified mismatches between templates, tests, and documentation:
+
+### Issues Found
+1. **Two readme templates**: Both `readme-template.md` (Sprint 1 placeholder) and `readme.md` (Sprint 3 production) existed
+2. **Non-existent changelog template**: `FILENAME_TO_TEMPLATE` dictionary included "changelog" mapping but no template file existed
+3. **Test expectations mismatch**: Changelog test expected "changelog" template but would fail in real usage
+
+### Changes Made
+1. **Removed** `doc_evergreen/templates/readme-template.md` (old Sprint 1 placeholder)
+2. **Updated** `FILENAME_TO_TEMPLATE` dictionary to remove changelog mapping
+3. **Fixed** changelog test to expect default "readme" fallback behavior
+4. **Verified** all 8 template detection tests still pass
+
+### Result
+- Code, tests, and templates now fully aligned
+- Only 3 production templates exist (readme, contributing, api-reference)
+- All 66 Sprint 3 tests passing with correct expectations
+- Documentation updated to reflect current state
+
+---
+
 ## Conclusion
 
 **Sprint 3 CLI + Templates is a SUCCESS** ✅
 
 The sprint goal is **ACHIEVED**:
 - ✅ Template management system with discovery and detection
-- ✅ Professional templates for common doc types
+- ✅ Professional templates for common doc types (3 production templates)
 - ✅ Full CLI interface with Click framework
 - ✅ Configuration file support with YAML parsing
 - ✅ Integration with Sprint 1-2 components
-- ✅ All core tests passing (100% of non-LLM tests)
+- ✅ All 66 tests passing (100% - including mocked LLM tests)
 - ✅ TDD cycle followed rigorously
+- ✅ Post-sprint cleanup completed (templates/tests/docs aligned)
 
 **Key Achievement**: doc_evergreen is now a proper developer tool, not just a script. Users can regenerate any documentation file with a simple command.
 
