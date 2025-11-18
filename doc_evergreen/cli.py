@@ -21,17 +21,29 @@ from doc_evergreen.template_manager import load_template
 
 @click.command("doc-update")
 @click.argument("target_file", type=click.Path(), required=False)
-@click.option("--template", "-t", help="Template to use (auto-detects if not specified)")
+@click.option(
+    "--template",
+    "-t",
+    help="Exact template name (use --list-templates to see options). Auto-detects from filename if not specified.",
+)
 @click.option("--list-templates", "list_templates_flag", is_flag=True, help="List available templates")
-@click.option("--no-review", is_flag=True, help="Skip review workflow (for automation)")
+@click.option("--no-review", is_flag=True, help="Skip review workflow (auto-apply changes)")
 def doc_update(target_file, template, list_templates_flag, no_review):
     """Regenerate documentation file using template and source context.
 
+    \b
     Examples:
-      amplifier doc-update README.md
-      amplifier doc-update docs/API.md --template api-reference
-      amplifier doc-update --list-templates
-      amplifier doc-update README.md --no-review
+      # List available templates
+      doc-update --list-templates
+
+      # Auto-detect template from filename
+      doc-update README.md
+
+      # Specify exact template name
+      doc-update docs/API.md --template api-reference
+
+      # Auto-apply without review prompt
+      doc-update README.md --no-review
     """
     # Default template directory - check for .templates/ in current directory first
     template_dir = Path(".templates") if Path(".templates").exists() else Path(__file__).parent / "templates"
