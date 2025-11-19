@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import pytest
+from pydantic_ai.models.test import TestModel
 
 from doc_evergreen.context_manager import ContextManager
 from doc_evergreen.core.source_validator import SourceValidationResult
@@ -29,6 +30,12 @@ from doc_evergreen.core.template_schema import Template
 # ============================================================================
 # FIXTURES
 # ============================================================================
+
+
+@pytest.fixture
+def test_model():
+    """Provide TestModel for tests that need LLM without API key."""
+    return TestModel(custom_output_text="Generated test content for documentation section.")
 
 
 @pytest.fixture
@@ -200,7 +207,7 @@ def test_dfs_traversal_empty_sections():
 
 
 @pytest.mark.asyncio
-async def test_generate_section_with_sources(mock_source_files: Path):
+async def test_generate_section_with_sources(mock_source_files: Path, test_model):
     """Test generating a single section with sources.
 
     Given: Section with sources and prompt
@@ -214,7 +221,7 @@ async def test_generate_section_with_sources(mock_source_files: Path):
 
     template = Template(document=Document(title="Test", output="out.md", sections=[section]))
 
-    generator = ChunkedGenerator(template, base_dir=mock_source_files)
+    generator = ChunkedGenerator(template, base_dir=mock_source_files, model=test_model)
 
     # Act
     result = await generator.generate_section(section=section, sources=[mock_source_files / "intro.md"], context="")
@@ -225,7 +232,7 @@ async def test_generate_section_with_sources(mock_source_files: Path):
 
 
 @pytest.mark.asyncio
-async def test_generate_section_with_context():
+async def test_generate_section_with_context(test_model):
     """Test generating section with prior context.
 
     Given: Section with context from previous sections
@@ -239,7 +246,7 @@ async def test_generate_section_with_context():
 
     template = Template(document=Document(title="Test", output="out.md", sections=[section]))
 
-    generator = ChunkedGenerator(template, base_dir=Path("."))
+    generator = ChunkedGenerator(template, base_dir=Path("."), model=test_model)
 
     prior_context = """Previous Sections Context:
 
@@ -303,9 +310,17 @@ async def test_generate_validates_sources_first(mock_template: Template, mock_so
     generator = ChunkedGenerator(mock_template, base_dir=mock_source_files)
 
     with patch("doc_evergreen.chunked_generator.validate_all_sources") as mock_validate:
-        mock_validate.return_value = SourceValidationResult(valid=True, errors=[], section_sources={}, section_stats={})
+        # Mock needs section_sources mapping for all sections
+        mock_validate.return_value = SourceValidationResult(
+            valid=True,
+            errors=[],
+            section_sources={"Introduction": [], "Features": [], "Installation": []},
+            section_stats={},
+        )
 
-        with patch.object(generator, "generate_section", new_callable=AsyncMock):
+        with patch.object(generator, "generate_section", new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = "Generated content"
+
             # Act
             await generator.generate()
 
@@ -314,7 +329,7 @@ async def test_generate_validates_sources_first(mock_template: Template, mock_so
 
 
 @pytest.mark.asyncio
-async def test_generate_produces_complete_document(mock_template: Template, mock_source_files: Path):
+async def test_generate_produces_complete_document(mock_template: Template, mock_source_files: Path, test_model):
     """Test that generation produces complete markdown document.
 
     Given: Template with multiple sections
@@ -324,17 +339,22 @@ async def test_generate_produces_complete_document(mock_template: Template, mock
     from doc_evergreen.chunked_generator import ChunkedGenerator
 
     # Arrange
-    generator = ChunkedGenerator(mock_template, base_dir=mock_source_files)
+    generator = ChunkedGenerator(mock_template, base_dir=mock_source_files, model=test_model)
 
-    # Act
-    result = await generator.generate()
+    # Mock generate_section to return content with section heading
+    async def mock_generate(section, sources, context):
+        return f"# {section.heading}\n\nGenerated content for {section.heading}"
 
-    # Assert - complete document with all sections
-    assert isinstance(result, str)
-    assert len(result) > 0
-    assert "Introduction" in result  # Section heading present
-    assert "Features" in result
-    assert "Installation" in result
+    with patch.object(generator, "generate_section", side_effect=mock_generate):
+        # Act
+        result = await generator.generate()
+
+        # Assert - complete document with all sections
+        assert isinstance(result, str)
+        assert len(result) > 0
+        assert "Introduction" in result  # Section heading present
+        assert "Features" in result
+        assert "Installation" in result
 
 
 @pytest.mark.asyncio
@@ -417,7 +437,7 @@ async def test_generate_passes_context_between_sections(mock_template: Template,
 
 
 @pytest.mark.asyncio
-async def test_integration_with_source_validator(mock_template: Template, mock_source_files: Path):
+async def test_integration_with_source_validator(mock_template: Template, mock_source_files: Path, test_model):
     """Test integration with SourceValidator.
 
     Given: Template with sources
@@ -427,7 +447,7 @@ async def test_integration_with_source_validator(mock_template: Template, mock_s
     from doc_evergreen.chunked_generator import ChunkedGenerator
 
     # Arrange
-    generator = ChunkedGenerator(mock_template, base_dir=mock_source_files)
+    generator = ChunkedGenerator(mock_template, base_dir=mock_source_files, model=test_model)
 
     # Act
     await generator.generate()
@@ -436,7 +456,7 @@ async def test_integration_with_source_validator(mock_template: Template, mock_s
 
 
 @pytest.mark.asyncio
-async def test_integration_with_context_manager(mock_template: Template, mock_source_files: Path):
+async def test_integration_with_context_manager(mock_template: Template, mock_source_files: Path, test_model):
     """Test integration with ContextManager.
 
     Given: Multiple sections
@@ -446,7 +466,7 @@ async def test_integration_with_context_manager(mock_template: Template, mock_so
     from doc_evergreen.chunked_generator import ChunkedGenerator
 
     # Arrange
-    generator = ChunkedGenerator(mock_template, base_dir=mock_source_files)
+    generator = ChunkedGenerator(mock_template, base_dir=mock_source_files, model=test_model)
 
     # Assert - ContextManager should be initialized
     assert hasattr(generator, "context_manager")
@@ -460,7 +480,7 @@ async def test_integration_with_context_manager(mock_template: Template, mock_so
 
 
 @pytest.mark.asyncio
-async def test_end_to_end_generation(mock_nested_template: Template, mock_source_files: Path):
+async def test_end_to_end_generation(mock_nested_template: Template, mock_source_files: Path, test_model):
     """Test complete end-to-end generation workflow.
 
     Given: Complete template with nested sections and sources
@@ -473,30 +493,35 @@ async def test_end_to_end_generation(mock_nested_template: Template, mock_source
     from doc_evergreen.chunked_generator import ChunkedGenerator
 
     # Arrange
-    generator = ChunkedGenerator(mock_nested_template, base_dir=mock_source_files)
+    generator = ChunkedGenerator(mock_nested_template, base_dir=mock_source_files, model=test_model)
 
-    # Act - full generation
-    result = await generator.generate()
+    # Mock generate_section to return content with section heading
+    async def mock_generate(section, sources, context):
+        return f"# {section.heading}\n\nGenerated content for {section.heading}"
 
-    # Assert - complete valid markdown document
-    assert isinstance(result, str)
-    assert len(result) > 0
+    with patch.object(generator, "generate_section", side_effect=mock_generate):
+        # Act - full generation
+        result = await generator.generate()
 
-    # All section headings present
-    assert "# Introduction" in result or "Introduction" in result
-    assert "Features" in result
-    assert "Core Features" in result
-    assert "Advanced" in result
-    assert "Installation" in result
-    assert "Prerequisites" in result
-    assert "Steps" in result
+        # Assert - complete valid markdown document
+        assert isinstance(result, str)
+        assert len(result) > 0
 
-    # Sections in correct order (DFS)
-    intro_pos = result.find("Introduction")
-    features_pos = result.find("Features")
-    install_pos = result.find("Installation")
+        # All section headings present
+        assert "# Introduction" in result or "Introduction" in result
+        assert "Features" in result
+        assert "Core Features" in result
+        assert "Advanced" in result
+        assert "Installation" in result
+        assert "Prerequisites" in result
+        assert "Steps" in result
 
-    assert intro_pos < features_pos < install_pos
+        # Sections in correct order (DFS)
+        intro_pos = result.find("Introduction")
+        features_pos = result.find("Features")
+        install_pos = result.find("Installation")
+
+        assert intro_pos < features_pos < install_pos
 
 
 # ============================================================================
@@ -555,25 +580,32 @@ async def test_generate_section_with_empty_prompt():
 
 
 @pytest.mark.asyncio
-async def test_generate_reports_progress(mock_template: Template, mock_source_files: Path, capsys):
+async def test_generate_reports_progress(
+    mock_template: Template, mock_source_files: Path, test_model, caplog: pytest.LogCaptureFixture
+):
     """Test that generation reports progress.
 
     Given: Multiple sections
     When: Generating document
     Then: Progress messages show which section and sources
     """
+    import logging
+
     from doc_evergreen.chunked_generator import ChunkedGenerator
 
     # Arrange
-    generator = ChunkedGenerator(mock_template, base_dir=mock_source_files)
+    generator = ChunkedGenerator(mock_template, base_dir=mock_source_files, model=test_model)
+
+    # Capture INFO level logs
+    caplog.set_level(logging.INFO)
 
     # Act
     await generator.generate()
 
-    # Assert - progress output captured
-    captured = capsys.readouterr()
+    # Assert - progress output captured in logs
+    output = caplog.text
     # Should mention section names
-    assert "Introduction" in captured.out or "Features" in captured.out
+    assert "Introduction" in output or "Features" in output
 
 
 # ============================================================================

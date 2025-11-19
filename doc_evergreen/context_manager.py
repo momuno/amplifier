@@ -41,14 +41,16 @@ async def summarize_with_llm(content: str) -> str:
 class ContextManager:
     """Manages context flow between documentation sections."""
 
-    def __init__(self, max_context_sections: int = 10):
+    def __init__(self, max_context_sections: int = 10, model: str | None = None):
         """Initialize context manager.
 
         Args:
             max_context_sections: Maximum number of sections to keep in context
+            model: Optional model for summarization (defaults to Claude Sonnet 4.5)
         """
         self._sections_deque: deque[GeneratedSection] = deque(maxlen=max_context_sections)
         self.max_context_sections = max_context_sections
+        self.model = model or AnthropicModel("claude-sonnet-4-5-20250929")
 
     @property
     def sections(self) -> list[GeneratedSection]:
@@ -138,8 +140,13 @@ class ContextManager:
             3-5 sentence summary
         """
         try:
-            summary = await summarize_with_llm(content)
-            return summary
+            agent = Agent(
+                model=self.model,
+                system_prompt="You are a technical writer. Summarize content in 3-5 concise sentences.",
+            )
+            prompt = f"Summarize this content in 3-5 sentences:\n\n{content}"
+            result = await agent.run(prompt)
+            return result.output.strip()
         except Exception as e:
             logger.warning(f"LLM summarization failed for '{heading}': {e}")
             # Fallback to first 500 characters

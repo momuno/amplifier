@@ -46,16 +46,18 @@ def traverse_dfs(sections: list[Section]) -> Iterator[Section]:
 class ChunkedGenerator:
     """Generate documentation section-by-section with explicit prompts."""
 
-    def __init__(self, template: Template, base_dir: Path):
+    def __init__(self, template: Template, base_dir: Path, model: str | None = None):
         """Initialize generator with template and base directory.
 
         Args:
             template: Template defining document structure
             base_dir: Base directory for resolving source files
+            model: Optional model name/instance for testing (defaults to Claude Sonnet 4.5)
         """
         self.template = template
         self.base_dir = base_dir
-        self.context_manager = ContextManager()
+        self.model = model or "anthropic:claude-sonnet-4-5-20250929"
+        self.context_manager = ContextManager(model=self.model)
 
         # Agent will be initialized lazily
         self._agent: Agent | None = None
@@ -65,7 +67,7 @@ class ChunkedGenerator:
         """Get or create the LLM agent (lazy initialization)."""
         if self._agent is None:
             self._agent = Agent(
-                "anthropic:claude-sonnet-4-5-20250929",
+                self.model,
                 system_prompt="You are a technical documentation writer. Generate clear, accurate documentation.",
             )
         return self._agent
