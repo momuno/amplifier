@@ -105,7 +105,7 @@ class ChunkedGenerator:
             content = await self.generate_section(section, sources, context)
 
             # Track in context manager
-            self.context_manager.add_section(section.heading, content)
+            await self.context_manager.add_section(section.heading, content)
 
             # Accumulate markdown
             markdown_parts.append(content)

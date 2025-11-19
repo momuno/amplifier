@@ -35,7 +35,8 @@ class TestContextManagerBasics:
 
         assert manager.max_context_sections == 5
 
-    def test_context_manager_adds_sections(self):
+    @pytest.mark.asyncio
+    async def test_context_manager_adds_sections(self):
         """
         Given: A context manager
         When: Sections are added
@@ -43,14 +44,17 @@ class TestContextManagerBasics:
         """
         manager = ContextManager()
 
-        manager.add_section("Overview", "doc_evergreen maintains living docs")
-        manager.add_section("Features", "Key features include templates")
+        with patch("doc_evergreen.context_manager.summarize_with_llm") as mock_llm:
+            mock_llm.return_value = "Summary"
+            await manager.add_section("Overview", "doc_evergreen maintains living docs")
+            await manager.add_section("Features", "Key features include templates")
 
         assert len(manager.sections) == 2
         assert manager.sections[0].heading == "Overview"
         assert manager.sections[1].heading == "Features"
 
-    def test_context_manager_limits_size(self):
+    @pytest.mark.asyncio
+    async def test_context_manager_limits_size(self):
         """
         Given: A context manager with max_context_sections=3
         When: More than 3 sections are added
@@ -58,11 +62,13 @@ class TestContextManagerBasics:
         """
         manager = ContextManager(max_context_sections=3)
 
-        manager.add_section("Section 1", "Content 1")
-        manager.add_section("Section 2", "Content 2")
-        manager.add_section("Section 3", "Content 3")
-        manager.add_section("Section 4", "Content 4")
-        manager.add_section("Section 5", "Content 5")
+        with patch("doc_evergreen.context_manager.summarize_with_llm") as mock_llm:
+            mock_llm.return_value = "Summary"
+            await manager.add_section("Section 1", "Content 1")
+            await manager.add_section("Section 2", "Content 2")
+            await manager.add_section("Section 3", "Content 3")
+            await manager.add_section("Section 4", "Content 4")
+            await manager.add_section("Section 5", "Content 5")
 
         assert len(manager.sections) == 3
         assert manager.sections[0].heading == "Section 3"
@@ -85,7 +91,8 @@ class TestContextGeneration:
 
         assert context == ""
 
-    def test_get_context_for_section(self):
+    @pytest.mark.asyncio
+    async def test_get_context_for_section(self):
         """
         Given: A context manager with multiple sections with summaries
         When: Getting context for a section
@@ -93,14 +100,16 @@ class TestContextGeneration:
         """
         manager = ContextManager()
 
-        # Add sections with pre-generated summaries
-        manager.add_section("Overview", "Long content about overview...")
-        manager.sections[0].summary = "doc_evergreen maintains living documentation."
+        with patch("doc_evergreen.context_manager.summarize_with_llm") as mock_llm:
+            # Add sections with pre-generated summaries
+            mock_llm.return_value = "doc_evergreen maintains living documentation."
+            await manager.add_section("Overview", "Long content about overview...")
 
-        manager.add_section("Features", "Long content about features...")
-        manager.sections[1].summary = "Key features include template system."
+            mock_llm.return_value = "Key features include template system."
+            await manager.add_section("Features", "Long content about features...")
 
-        manager.add_section("Architecture", "Content about architecture...")
+            mock_llm.return_value = "Summary"
+            await manager.add_section("Architecture", "Content about architecture...")
 
         # Get context for the third section (should include first two)
         context = manager.get_context_for_section(section_index=2)
@@ -113,7 +122,8 @@ class TestContextGeneration:
         # Should NOT include the current section (Architecture)
         assert "Architecture" not in context
 
-    def test_context_includes_all_previous_sections(self):
+    @pytest.mark.asyncio
+    async def test_context_includes_all_previous_sections(self):
         """
         Given: A context manager with 5 sections
         When: Getting context for section 4
@@ -121,9 +131,10 @@ class TestContextGeneration:
         """
         manager = ContextManager()
 
-        for i in range(5):
-            manager.add_section(f"Section {i}", f"Content {i}")
-            manager.sections[i].summary = f"Summary {i}"
+        with patch("doc_evergreen.context_manager.summarize_with_llm") as mock_llm:
+            for i in range(5):
+                mock_llm.return_value = f"Summary {i}"
+                await manager.add_section(f"Section {i}", f"Content {i}")
 
         context = manager.get_context_for_section(section_index=4)
 
@@ -193,12 +204,13 @@ class TestSummarization:
         with patch("doc_evergreen.context_manager.summarize_with_llm") as mock_llm:
             mock_llm.return_value = "Generated summary."
 
-            manager.add_section("Overview", "Long content...")
+            await manager.add_section("Overview", "Long content...")
 
             # Summary should be stored
             assert manager.sections[0].summary == "Generated summary."
 
-    def test_summary_length_validation(self):
+    @pytest.mark.asyncio
+    async def test_summary_length_validation(self):
         """
         Given: A section with various content lengths
         When: Summary is generated
@@ -213,21 +225,22 @@ class TestSummarization:
         with patch("doc_evergreen.context_manager.summarize_with_llm") as mock_llm:
             mock_llm.return_value = short_content
 
-            manager.add_section("Short", short_content)
+            await manager.add_section("Short", short_content)
             assert len(manager.sections[0].summary) <= len(short_content) + 50
 
         # For long content, summary should be much shorter
         with patch("doc_evergreen.context_manager.summarize_with_llm") as mock_llm:
             mock_llm.return_value = "Concise summary of long content."
 
-            manager.add_section("Long", long_content)
+            await manager.add_section("Long", long_content)
             assert len(manager.sections[1].summary) < len(long_content) / 2
 
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_get_context_for_invalid_index(self):
+    @pytest.mark.asyncio
+    async def test_get_context_for_invalid_index(self):
         """
         Given: A context manager with 3 sections
         When: Getting context for out-of-bounds index
@@ -235,8 +248,10 @@ class TestEdgeCases:
         """
         manager = ContextManager()
 
-        manager.add_section("S1", "C1")
-        manager.add_section("S2", "C2")
+        with patch("doc_evergreen.context_manager.summarize_with_llm") as mock_llm:
+            mock_llm.return_value = "Summary"
+            await manager.add_section("S1", "C1")
+            await manager.add_section("S2", "C2")
 
         with pytest.raises(IndexError):
             manager.get_context_for_section(section_index=10)
@@ -274,7 +289,7 @@ class TestEdgeCases:
 
             # Add multiple sections
             for i in range(5):
-                manager.add_section(f"Section {i}", f"Content {i}")
+                await manager.add_section(f"Section {i}", f"Content {i}")
 
             # All should have summaries
             assert all(section.summary for section in manager.sections)

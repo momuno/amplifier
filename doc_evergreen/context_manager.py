@@ -1,6 +1,5 @@
 """Context manager for tracking and managing section context flow."""
 
-import asyncio
 import logging
 from collections import deque
 from dataclasses import dataclass
@@ -69,7 +68,7 @@ class ContextManager:
 
         return SectionsList(self._sections_deque)
 
-    def add_section(self, heading: str, content: str) -> None:
+    async def add_section(self, heading: str, content: str) -> None:
         """Add a section and generate its summary.
 
         Args:
@@ -80,41 +79,13 @@ class ContextManager:
         section = GeneratedSection(heading=heading, content=content, summary="")
         self._sections_deque.append(section)
 
-        # Generate summary - handle both sync and async contexts
-        from unittest.mock import AsyncMock
-        from unittest.mock import MagicMock
-
-        # Import to get access to the function that might be mocked
-        import doc_evergreen.context_manager as ctx_module
-
-        summarize_fn = ctx_module.summarize_with_llm
-
-        # Check if it's an AsyncMock (used in tests)
-        if isinstance(summarize_fn, AsyncMock | MagicMock):
-            # It's mocked - need to handle AsyncMock specially
-            result = summarize_fn(content)
-            # AsyncMock returns a coroutine, but we can get the return_value
-            if isinstance(summarize_fn, AsyncMock):
-                section.summary = summarize_fn.return_value
-            else:
-                section.summary = result
-            return
-
-        # Real async function - handle async context
+        # Generate summary asynchronously
         try:
-            # Try to get running loop
-            asyncio.get_running_loop()
-            # We're in an async context but can't await here
-            # Leave summary empty for now
+            summary = await self.summarize_section(heading, content)
+            section.summary = summary
+        except Exception as e:
+            logger.warning(f"Failed to generate summary for '{heading}': {e}")
             section.summary = ""
-        except RuntimeError:
-            # No running loop - we can use asyncio.run
-            try:
-                summary = asyncio.run(self.summarize_section(heading, content))
-                section.summary = summary
-            except Exception as e:
-                logger.warning(f"Failed to generate summary for '{heading}': {e}")
-                section.summary = ""
 
     def get_context_for_section(self, section_index: int) -> str:
         """Get formatted context from all previous sections.

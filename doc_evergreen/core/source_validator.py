@@ -3,12 +3,15 @@
 Validates all source files upfront before generation starts (fail early).
 """
 
+import logging
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
 
 from doc_evergreen.core.template_schema import Section
 from doc_evergreen.core.template_schema import Template
+
+logger = logging.getLogger(__name__)
 
 
 class SourceValidationError(Exception):
@@ -116,21 +119,21 @@ def display_validation_report(result: SourceValidationResult) -> None:
     Args:
         result: Validation result to display
     """
-    print("\n📋 Validating template sources...")
-    print()
+    logger.info("\n📋 Validating template sources...")
+    logger.info("")
 
     if not result.valid:
         # Show errors
-        print("❌ Validation failed:\n")
+        logger.error("❌ Validation failed:\n")
         for error in result.errors:
-            print(f"  ERROR: {error}")
-        print("\n  Fix: Check that all source paths exist relative to base directory")
+            logger.error(f"  ERROR: {error}")
+        logger.info("\n  Fix: Check that all source paths exist relative to base directory")
         return
 
     # Show successful validation
     for section_name, sources in result.section_sources.items():
-        print(f"Section: {section_name}")
-        print(f"  Sources: {[str(s.name) for s in sources]}")
+        logger.info(f"Section: {section_name}")
+        logger.info(f"  Sources: {[str(s.name) for s in sources]}")
 
         stats = result.section_stats.get(section_name, {})
         file_count = stats.get("file_count", 0)
@@ -138,7 +141,7 @@ def display_validation_report(result: SourceValidationResult) -> None:
 
         for source in sources:
             size_kb = source.stat().st_size / 1024
-            print(f"  ✅ Found: {source.name} ({size_kb:.1f} KB)")
+            logger.info(f"  ✅ Found: {source.name} ({size_kb:.1f} KB)")
 
-        print(f"  Total: {file_count} files, {total_bytes / 1024:.1f} KB")
-        print()
+        logger.info(f"  Total: {file_count} files, {total_bytes / 1024:.1f} KB")
+        logger.info("")

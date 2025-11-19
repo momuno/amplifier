@@ -206,7 +206,7 @@ class TestSourceValidation:
 class TestValidationReportDisplay:
     """Test validation report display to user."""
 
-    def test_validation_report_display(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    def test_validation_report_display(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """
         Given: A SourceValidationResult with resolved sources
         When: display_validation_report is called
@@ -232,12 +232,14 @@ class TestValidationReportDisplay:
 
         result = validate_all_sources(template, base_dir=tmp_path)
 
-        # Act: Display validation report
+        # Act: Display validation report (capture INFO level logs)
+        import logging
+
+        caplog.set_level(logging.INFO)
         display_validation_report(result)
 
         # Assert: Output contains expected information
-        captured = capsys.readouterr()
-        output = captured.out
+        output = caplog.text
 
         # Should show section name
         assert "Overview" in output
@@ -252,7 +254,7 @@ class TestValidationReportDisplay:
         # Should show success indicator
         assert "✅" in output or "Found" in output
 
-    def test_validation_report_shows_failures(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    def test_validation_report_shows_failures(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """
         Given: A template with missing sources (validation failed)
         When: display_validation_report is called
@@ -285,11 +287,14 @@ class TestValidationReportDisplay:
                 section_stats={},
             )
 
+        # Display validation report (capture INFO level logs)
+        import logging
+
+        caplog.set_level(logging.INFO)
         display_validation_report(result)
 
         # Assert: Output shows error
-        captured = capsys.readouterr()
-        output = captured.out
+        output = caplog.text
 
         # Should show failure indicator
         assert "❌" in output or "ERROR" in output
