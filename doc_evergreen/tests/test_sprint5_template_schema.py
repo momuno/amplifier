@@ -73,7 +73,7 @@ class TestSectionSchema:
         """
         section_data = {"heading": "Introduction", "prompt": "Brief intro paragraph"}
 
-        section = Section(**section_data)
+        section = Section(**section_data)  # type: ignore[arg-type]
 
         assert section.heading == "Introduction"
         assert section.prompt == "Brief intro paragraph"
@@ -87,7 +87,7 @@ class TestSectionSchema:
         """
         section_data = {"heading": "Conclusion"}
 
-        section = Section(**section_data)
+        section = Section(**section_data)  # type: ignore[arg-type]
 
         assert section.heading == "Conclusion"
         assert section.prompt is None
