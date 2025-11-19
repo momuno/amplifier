@@ -1,183 +1,93 @@
 """
-Sprint 3 Deliverable 2: CLI Interface
+Sprint 5: CLI Interface for Template-Based Documentation Generation
 
-Click-based CLI for doc-evergreen documentation regeneration.
-Integrates template manager, context gathering, preview, diff, and review workflow.
+Supports both single-shot and chunked generation modes with section-level prompts.
 """
 
+import asyncio
 from pathlib import Path
 
 import click
 
-from doc_evergreen.context import gather_context
-from doc_evergreen.diff import show_diff
-from doc_evergreen.file_ops import accept_changes
-from doc_evergreen.file_ops import reject_changes
-from doc_evergreen.preview import generate_preview
-from doc_evergreen.source_resolver import resolve_sources
-from doc_evergreen.source_resolver import validate_sources
-from doc_evergreen.template_manager import detect_template
-from doc_evergreen.template_manager import list_templates
-from doc_evergreen.template_manager import load_template
+from doc_evergreen.chunked_generator import ChunkedGenerator
+from doc_evergreen.core.template_schema import parse_template
+from doc_evergreen.core.template_schema import validate_template
+
+# Import Generator for single-shot mode (fallback to ChunkedGenerator if not available)
+try:
+    from doc_evergreen.single_generator import Generator
+except ImportError:
+    Generator = ChunkedGenerator  # type: ignore[misc,assignment]
 
 
 @click.command("doc-update")
-@click.argument("target_file", type=click.Path(), required=False)
+@click.argument("template_path", type=click.Path(exists=True))
 @click.option(
-    "--template",
-    "-t",
-    help="Exact template name (use --list-templates to see options). Auto-detects from filename if not specified.",
-)
-@click.option("--list-templates", "list_templates_flag", is_flag=True, help="List available templates")
-@click.option("--no-review", is_flag=True, help="Skip review workflow (auto-apply changes)")
-@click.option(
-    "--sources",
-    "-s",
-    help="Comma-separated source files or patterns (overrides defaults)",
+    "--mode",
+    type=click.Choice(["single", "chunked"]),
+    default="single",
+    help="Generation mode: single-shot or section-by-section",
 )
 @click.option(
-    "--exclude",
-    "-e",
-    help="Comma-separated exclusion patterns",
+    "--output",
+    type=click.Path(),
+    help="Override output path from template",
 )
-@click.option(
-    "--add-sources",
-    "-a",
-    help="Additional sources to merge with defaults",
-)
-@click.option(
-    "--show-sources",
-    is_flag=True,
-    help="Preview sources without generating documentation",
-)
-def doc_update(target_file, template, list_templates_flag, no_review, sources, exclude, add_sources, show_sources):
-    """Regenerate documentation file using template and source context.
+def doc_update(template_path: str, mode: str, output: str | None):
+    """Generate/update documentation from JSON template.
 
     \b
     Examples:
-      # List available templates
-      doc-update --list-templates
+      # Generate using single-shot mode (default)
+      doc-update template.json
 
-      # Auto-detect template from filename
-      doc-update README.md
+      # Generate using chunked mode (section-by-section)
+      doc-update --mode chunked template.json
 
-      # Specify exact template name
-      doc-update docs/API.md --template api-reference
-
-      # Auto-apply without review prompt
-      doc-update README.md --no-review
-
-      # Override source files
-      doc-update README.md --sources "src/*.py,docs/*.md"
-
-      # Add sources to defaults
-      doc-update README.md --add-sources "config/*.yaml"
-
-      # Exclude patterns
-      doc-update README.md --exclude "test_*,*.pyc"
-
-      # Preview sources without generating
-      doc-update --show-sources
+      # Override output path
+      doc-update --output custom.md template.json
     """
-    # Default template directory - check for .templates/ in current directory first
-    template_dir = Path(".templates") if Path(".templates").exists() else Path(__file__).parent / "templates"
-
-    # 1. Handle --list-templates flag
-    if list_templates_flag:
-        templates = list_templates(template_dir)
-        for t in templates:
-            click.echo(t)
-        return
-
-    # Handle --show-sources flag
-    if show_sources:
-        base_dir = Path.cwd()
-        exclusions = exclude.split(",") if exclude else None
-
-        # Resolve sources using source resolver (includes exclusion handling)
-        resolved = resolve_sources(
-            cli_sources=sources, add_sources=add_sources, base_dir=base_dir, exclusions=exclusions
-        )
-
-        # Validate sources
-        validated = validate_sources(resolved)
-
-        # Display sources with sizes
-        click.echo(f"Sources for {target_file or 'documentation'}:")
-        total_size = 0
-        for source_path in validated:
-            try:
-                size = Path(source_path).stat().st_size
-                total_size += size
-                size_kb = size / 1024
-                click.echo(f"  ✓ {source_path} ({size_kb:.1f} KB)")
-            except Exception:
-                click.echo(f"  ✓ {source_path}")
-
-        # Display summary
-        count = len(validated)
-        if total_size > 0:
-            total_kb = total_size / 1024
-            click.echo(f"\nTotal: {count} sources ({total_kb:.1f} KB)")
-        else:
-            click.echo(f"\nTotal: {count} sources")
-        return
-
-    # 2. Require target_file if not listing templates
-    if not target_file:
-        raise click.UsageError("Missing argument 'TARGET_FILE'.")
-
-    # 3. Detect or validate template
-    if not template:
-        template = detect_template(target_file)
-
-    # 4. Load template
+    # 1. Parse template
     try:
-        template_content = load_template(template, template_dir=template_dir)
-    except FileNotFoundError:
-        available = list_templates(template_dir)
-        click.echo(f"Error: Template '{template}' not found", err=True)
-        if available:
-            click.echo(f"Available templates: {', '.join(available)}", err=True)
-        raise SystemExit(1)
+        template = parse_template(Path(template_path))
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
 
-    # 5. Resolve sources
-    base_dir = Path.cwd()
-    exclusions = exclude.split(",") if exclude else None
+    # 2. Validate template based on mode
+    validation = validate_template(template, mode=mode)
+    if not validation.valid:
+        click.echo(f"Error: {validation.errors[0]}", err=True)
+        raise click.Abort()
 
-    # Resolve sources using source resolver (includes exclusion handling)
-    resolved = resolve_sources(cli_sources=sources, add_sources=add_sources, base_dir=base_dir, exclusions=exclusions)
+    # 3. Determine base_dir (parent of template file)
+    base_dir = Path(template_path).parent
 
-    # Validate sources
-    validated = validate_sources(resolved)
-
-    # Convert to Path objects for gather_context
-    source_paths = [Path(s) for s in validated]
-
-    # 6. Gather context
-    context = gather_context(sources=source_paths)
-
-    # 7. Generate preview
-    preview_path = generate_preview(template_content, context, target_file, Path("."))
-
-    # 8. Show diff if target exists, otherwise show warning
-    target_path = Path(target_file)
-    if target_path.exists():
-        show_diff(str(target_path), str(preview_path))
+    # 4. Route to appropriate generator
+    if mode == "chunked":
+        generator = ChunkedGenerator(template, base_dir)
     else:
-        click.echo(f"Warning: {target_file} doesn't exist - this will create a new file")
+        # Use single-shot Generator
+        generator = Generator(template, base_dir)
 
-    # 9. Review or auto-accept
-    if no_review:
-        accept_changes(target_path, preview_path)
-        click.echo(f"✅ Accepted: {target_file} updated")
-    else:
-        if click.confirm("Accept changes?"):
-            accept_changes(target_path, preview_path)
-            click.echo(f"✅ Accepted: {target_file} updated")
-        else:
-            reject_changes(preview_path)
-            click.echo(f"❌ Rejected: {target_file} unchanged")
+    # 5. Generate documentation (async)
+    try:
+        result = asyncio.run(generator.generate())
+    except Exception as e:
+        click.echo(f"Generation failed: {e}", err=True)
+        raise click.Abort()
+
+    # 6. Determine output path
+    output_path = Path(output) if output else Path(template.document.output)
+
+    # 7. Check if output exists and prompt for confirmation
+    if output_path.exists() and not click.confirm(f"Overwrite {output_path}?"):
+        click.echo("Aborted")
+        return
+
+    # 8. Write output
+    output_path.write_text(result)
+    click.echo(f"Generated: {output_path}")
 
 
 if __name__ == "__main__":
