@@ -1,6 +1,6 @@
-# AI-Assisted Development Workflows
+# Convergent Development - Workflows
 
-**Purpose**: This directory documents the complete workflows for AI-assisted product development, from ideation to implementation.
+**Purpose**: This directory documents the complete convergent development workflow, from ideation to implementation.
 
 ---
 
@@ -9,50 +9,54 @@
 ```
 💡 Idea/Feature Request
     ↓
-📊 [/converge] Convergence-Architect
+📊 [/convergent-dev:1-converge] Convergence-Architect
     ↓ (produces)
-📄 MVP Definition + Deferred Features
+📄 Feature Scope + Deferred Features + Master Backlog
     ↓
-🗓️ [/plan-sprints] Sprint-Planner
+🗓️ [/convergent-dev:2-plan-sprints] Sprint-Planner
     ↓ (produces)
-📋 Sprint Plans (value-first, incremental)
+📋 Sprint Plans with Version (vX.Y.Z)
     ↓
-🔴🟢🔵 [/tdd-cycle] TDD Implementation
+🔴🟢🔵 [/convergent-dev:3-tdd-cycle] TDD Implementation
     ↓ (produces)
 ✅ Working Software + Learnings
     ↓
-🔄 Revisit Deferred Features → Next MVP
+🐛 [/convergent-dev:4-capture-issues] Issue Tracking
+    ↓
+🔄 Revisit Deferred Features → Next Convergence
 ```
 
 ---
 
-## The Three Core Workflows
+## The Four Core Workflows
 
-### 1. Ideation to MVP: Convergence-Architect
-**Document**: [IDEATION_TO_MVP.md](./IDEATION_TO_MVP.md)
-**Command**: `/converge [project-name]`
+### 1. Ideation to Feature Scope: Convergence-Architect
+**Document**: [CONVERGENCE_PROCESS.md](./CONVERGENCE_PROCESS.md)
+**Command**: `/convergent-dev:1-converge`
 
-**Purpose**: Transform divergent exploration into a focused MVP with everything else thoughtfully deferred.
+**Purpose**: Transform divergent exploration into a focused feature scope with everything else thoughtfully deferred.
 
 **Phases**:
 - 🌟 DIVERGE: Explore all possibilities freely
 - 📋 CAPTURE: Organize ideas into structures
-- 🎯 CONVERGE: Identify the MVP (3-5 features)
+- 🎯 CONVERGE: Identify the feature scope (3-5 features)
 - 💾 DEFER: Preserve ideas for future iterations
 
 **Outputs**:
-- `ai_working/[project]/MVP_DEFINITION.md`
-- `ai_working/[project]/DEFERRED_FEATURES.md`
+- `ai_working/[project]/convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md`
+- `ai_working/[project]/convergence/YYYY-MM-DD-feature-name/DEFERRED_FEATURES.md`
+- `ai_working/[project]/convergence/YYYY-MM-DD-feature-name/CONVERGENCE_COMPLETE.md`
+- `ai_working/[project]/convergence/MASTER_BACKLOG.md` (updated)
 
 **When to use**: Starting new projects, defining features, scope reduction
 
 ---
 
-### 2. MVP to Sprints: Sprint-Planner
-**Document**: [MVP_TO_SPRINTS.md](./MVP_TO_SPRINTS.md)
-**Command**: `/plan-sprints [mvp-definition-path]`
+### 2. Feature Scope to Sprints: Sprint-Planner
+**Document**: [SPRINT_PLANNING.md](./SPRINT_PLANNING.md)
+**Command**: `/convergent-dev:2-plan-sprints`
 
-**Purpose**: Break down MVP into executable value-first sprints following lean/agile principles.
+**Purpose**: Break down feature scope into executable value-first sprints with version number following SemVer.
 
 **Key Principles**:
 - Vertical slices (end-to-end functionality)

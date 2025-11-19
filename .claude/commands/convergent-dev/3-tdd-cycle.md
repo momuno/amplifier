@@ -58,7 +58,7 @@ Implement sprint features using Test-Driven Development with agent coordination.
 - Sprint deliverable complete
 - All tests passing
 - Code refactored and committed
-- Ready for next sprint with `/tdd-cycle [next-sprint]`
+- Ready for next sprint with `/convergent-dev:3-tdd-cycle [next-sprint]`
 
 **Philosophy:**
 - Tests first, always (RED-GREEN-REFACTOR)
@@ -74,7 +74,7 @@ Implement sprint features using Test-Driven Development with agent coordination.
 - No mocking everything
 - Fast, isolated, repeatable
 
-**Documentation:** See `ai_context/workflows/TDD_CYCLE.md` for detailed guide.
+**Documentation:** See `ai_context/convergent-dev/TDD_CYCLE.md` for detailed guide.
 
 ---
 

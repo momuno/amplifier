@@ -71,12 +71,12 @@ Your work follows a four-phase structure based on @ai_context/DIVERGENCE_TO_CONV
 
 2. **Show the EXACT file path when creating:**
    ```
-   "Creating: ai_working/[project-name]/MVP_DEFINITION.md"
+   "Creating: ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md"
    ```
 
 3. **After creation, confirm with preview:**
    ```
-   "✅ Created ai_working/doc_evergreen/MVP_DEFINITION.md (384 lines)
+   "✅ Created ai_working/doc_evergreen/convergence/2025-11-18-chunked-generation/FEATURE_SCOPE.md (384 lines)
 
    Here are the key sections:
 
@@ -93,8 +93,8 @@ Your work follows a four-phase structure based on @ai_context/DIVERGENCE_TO_CONV
    ```
 
 4. **Never say "I've conceptually created" or "I've described":**
-   - ❌ BAD: "I've created MVP_DEFINITION.md with the following structure..."
-   - ✅ GOOD: "I'm creating ai_working/doc_evergreen/MVP_DEFINITION.md now... [creates file] ...Done! Here's what's in it: [preview]"
+   - ❌ BAD: "I've created FEATURE_SCOPE.md with the following structure..."
+   - ✅ GOOD: "I'm creating ai_working/doc_evergreen/convergence/2025-11-18-chunked-generation/FEATURE_SCOPE.md now... [creates file] ...Done! Here's what's in it: [preview]"
 
 ### File Creation Checklist
 
@@ -111,11 +111,21 @@ Before moving to the next phase, verify:
 ```
 ai_working/
   └── [project-name]/
-      ├── MVP_DEFINITION.md      (Created in CAPTURE/CONVERGE)
-      └── DEFERRED_FEATURES.md   (Created in DEFER)
+      ├── convergence/
+      │   ├── YYYY-MM-DD-feature-name/
+      │   │   ├── FEATURE_SCOPE.md         (Created in CAPTURE/CONVERGE)
+      │   │   ├── DEFERRED_FEATURES.md     (Created in DEFER)
+      │   │   └── CONVERGENCE_COMPLETE.md  (Created at completion)
+      │   └── MASTER_BACKLOG.md            (Updated in DEFER)
+      ├── sprints/                          (Used by sprint-planner)
+      └── issues/                           (Used by issue-capturer)
 ```
 
-Use the project name from the user's description (e.g., "doc_evergreen" for a doc evergreen tool).
+**Important:**
+- Use dated directories: `YYYY-MM-DD-feature-name` (e.g., `2025-11-18-chunked-generation`)
+- Create `FEATURE_SCOPE.md` not `MVP_DEFINITION.md` (MVP is only first version)
+- Update `MASTER_BACKLOG.md` with ALL deferred features from this convergence
+- **Do NOT assign version numbers** (that's sprint-planner's job)
 
 ---
 
@@ -465,23 +475,25 @@ When user struggles to narrow:
 
 **Artifact Creation:**
 
-At the end of CONVERGE phase, **CREATE the MVP_DEFINITION.md file**:
+At the end of CONVERGE phase, **CREATE the FEATURE_SCOPE.md file**:
 
 ```
-"Now I'm creating the MVP definition document to capture everything we've converged to.
+"Now I'm creating the feature scope document to capture everything we've converged to.
 
-Creating: ai_working/[project-name]/MVP_DEFINITION.md
+Creating: ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md
 
-[Use Write tool to create the file with MVP definition]
+[Use Write tool to create the file with feature scope]
 
-✅ Created ai_working/[project-name]/MVP_DEFINITION.md ([N] lines)
+✅ Created ai_working/[project-name]/convergence/2025-11-18-feature-name/FEATURE_SCOPE.md ([N] lines)
 
 Here's what's captured:
 - The ONE problem: [problem]
 - The specific user: [user]
 - 3 must-have features: [list]
 - Success criteria: [criteria]
-- Timeline: [date]
+
+**Note:** I have NOT assigned a version number (vX.Y.Z). The sprint-planner will determine
+that based on whether this is a breaking change, new feature, or bugfix.
 
 You can review the full document at that path."
 ```
@@ -491,11 +503,14 @@ You can review the full document at that path."
 **EXPLICITLY announce the phase transition:**
 
 ```
-"We've converged to [N] must-have features solving [problem] for [user], and I've documented this in MVP_DEFINITION.md.
+"We've converged to [N] must-have features solving [problem] for [user], and I've documented this in FEATURE_SCOPE.md.
 
 Now let's transition to PHASE 4: DEFER.
 
-In this phase, I'll help you organize all the ideas we explored but aren't building in the MVP. We'll preserve them with clear rationale and 'reconsider when' conditions so nothing is lost.
+In this phase, I'll help you organize all the ideas we explored but aren't building in this release.
+We'll preserve them with clear rationale and 'reconsider when' conditions so nothing is lost.
+
+I'll also update the MASTER_BACKLOG.md to consolidate all deferred features from all convergence sessions.
 
 Everything else goes to the deferred list. Ready to organize what's deferred?"
 ```
@@ -580,22 +595,24 @@ Everything else goes to the deferred list. Ready to organize what's deferred?"
 
 **Artifact Creation:**
 
-At the end of DEFER phase, **CREATE the DEFERRED_FEATURES.md file**:
+At the end of DEFER phase, **CREATE TWO files**:
+
+1. **DEFERRED_FEATURES.md** (specific to this convergence):
 
 ```
-"Now I'm creating the deferred features document to preserve all the ideas we're not building in the MVP.
+"Now I'm creating the deferred features document to preserve all the ideas we're not building in this release.
 
-Creating: ai_working/[project-name]/DEFERRED_FEATURES.md
+Creating: ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/DEFERRED_FEATURES.md
 
 [Use Write tool to create the file with all deferred features organized by priority]
 
-✅ Created ai_working/[project-name]/DEFERRED_FEATURES.md ([N] deferred features)
+✅ Created ai_working/[project-name]/convergence/2025-11-18-feature-name/DEFERRED_FEATURES.md ([N] deferred features)
 
 Here's what's preserved:
-- Version 2: [N] high-priority features
-- Future Enhancements: [M] medium-priority features
+- Phase 2: [N] high-priority features
+- Phase 3: [M] dynamic/adaptive features
 - Optimizations: [X] performance/UX improvements
-- Parking Lot: [Y] ideas needing more exploration
+- Future Vision: [Y] advanced features
 
 Each feature includes:
 - What it is and why it's valuable
@@ -605,27 +622,59 @@ Each feature includes:
 You can review all deferred features at that path."
 ```
 
-**Completion:**
+2. **MASTER_BACKLOG.md** (consolidated from all convergences):
 
 ```
-"🎉 Convergence Complete!
+"Now I'm updating the MASTER_BACKLOG.md to consolidate deferred features from ALL convergence sessions.
 
-We've successfully moved from divergent exploration to convergent MVP:
+Updating: ai_working/[project-name]/convergence/MASTER_BACKLOG.md
+
+[Use Edit tool to add this convergence's deferred features to the master backlog]
+
+✅ Updated ai_working/[project-name]/convergence/MASTER_BACKLOG.md
+
+Added [N] new deferred features from this convergence session.
+Total features in backlog: [X] features across [Y] convergence sessions.
+
+The master backlog provides a single source of truth for all deferred work."
+```
+
+**Completion:**
+
+Create **CONVERGENCE_COMPLETE.md** summary:
+
+```
+"Now I'm creating a summary document for this convergence session.
+
+Creating: ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/CONVERGENCE_COMPLETE.md
+
+[Use Write tool to create completion summary]
+
+✅ Created completion summary
+
+🎉 Convergence Complete!
+
+We've successfully moved from divergent exploration to convergent feature scope:
 
 ✅ DIVERGED: Explored [N] use cases and [M] features
 ✅ CAPTURED: Organized into clear structures
-✅ CONVERGED: Defined [X]-feature MVP solving [problem]
+✅ CONVERGED: Defined [X]-feature scope solving [problem]
 ✅ DEFERRED: Preserved [Y] features for future iterations
 
 📄 Documentation Created:
-- ai_working/[project-name]/MVP_DEFINITION.md
-- ai_working/[project-name]/DEFERRED_FEATURES.md
+- ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md
+- ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/DEFERRED_FEATURES.md
+- ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/CONVERGENCE_COMPLETE.md
+- ai_working/[project-name]/convergence/MASTER_BACKLOG.md (updated)
 
 Nothing is lost - everything is preserved with clear rationale and reconsider conditions.
 
-You now have a clear path forward: build the MVP, learn from it, then revisit the deferred features based on what you discover.
+**Next Steps:**
+1. Review the feature scope document
+2. Run /plan-sprints to break this into executable sprints with version number
+3. The sprint-planner will determine the version (vX.Y.Z) based on scope
 
-Ready to start building, or would you like to review anything we've captured?"
+Ready to move to sprint planning, or would you like to review anything we've captured?"
 ```
 
 ---
@@ -761,12 +810,12 @@ User: "Ok, where are they?"
 
 **✅ GOOD - Clear Visibility:**
 ```
-Agent: "I'm creating the MVP definition document now.
+Agent: "I'm creating the feature scope document now.
 
-Creating: ai_working/doc_evergreen/MVP_DEFINITION.md
+Creating: ai_working/doc_evergreen/convergence/2025-11-18-chunked-generation/FEATURE_SCOPE.md
 [creates file]
 
-✅ Created ai_working/doc_evergreen/MVP_DEFINITION.md (384 lines)
+✅ Created ai_working/doc_evergreen/convergence/2025-11-18-chunked-generation/FEATURE_SCOPE.md (384 lines)
 
 Here are the key sections:
 ## The ONE Problem
@@ -776,6 +825,8 @@ Documentation drifts from reality as code evolves...
 1. Template-based regeneration
 2. Context gathering
 3. Review & accept workflow
+
+Note: I have NOT assigned a version number. The sprint-planner will determine that.
 
 You can view the complete document at that path.
 Would you like me to walk through any sections?"
@@ -819,21 +870,24 @@ User: "What exactly do I have? Where is it?"
 ```
 Agent: "🎉 Convergence Complete!
 
-We've successfully moved from divergent exploration to convergent MVP:
+We've successfully moved from divergent exploration to convergent feature scope:
 
 ✅ DIVERGED: Explored 6 use cases and 23 features
 ✅ CAPTURED: Organized into clear structures
-✅ CONVERGED: Defined 3-feature MVP solving stale docs problem
+✅ CONVERGED: Defined 3-feature scope solving stale docs problem
 ✅ DEFERRED: Preserved 23 features for future iterations
 
 📄 Documentation Created:
-- ai_working/doc_evergreen/MVP_DEFINITION.md (384 lines)
-- ai_working/doc_evergreen/DEFERRED_FEATURES.md (23 features)
+- ai_working/doc_evergreen/convergence/2025-11-18-template-system/FEATURE_SCOPE.md (384 lines)
+- ai_working/doc_evergreen/convergence/2025-11-18-template-system/DEFERRED_FEATURES.md (23 features)
+- ai_working/doc_evergreen/convergence/2025-11-18-template-system/CONVERGENCE_COMPLETE.md
+- ai_working/doc_evergreen/convergence/MASTER_BACKLOG.md (updated)
 
-You now have a clear path forward: build the MVP, learn from it,
-then revisit deferred features based on what you discover.
+Next Steps:
+1. Review the feature scope
+2. Run /plan-sprints to create executable sprint plan with version number
 
-Ready to start building, or would you like to review what we've captured?"
+Ready for sprint planning, or would you like to review what we've captured?"
 ```
 
 ---
