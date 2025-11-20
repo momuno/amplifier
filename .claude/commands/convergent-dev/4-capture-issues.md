@@ -48,18 +48,28 @@ issues/
 
 ## Integration with Workflow
 
-**Full workflow**:
+**The convergent-dev cycle**:
 ```bash
-/capture-issues doc_evergreen  # Capture feedback → issues
-/converge                       # Review issues → MVP scope
-/plan-sprints                   # MVP → executable sprints
-/tdd-cycle                      # Execute sprints with TDD
+1. /converge                       # New feature ideas → Feature scope
+2. /plan-sprints                   # Feature scope + existing issues → Sprints
+3. /tdd-cycle                      # Execute sprints with TDD
+4. /capture-issues doc_evergreen   # After implementation: Capture feedback → issues (stored)
+   └─→ (cycle repeats: issues feed into next /plan-sprints)
 ```
 
+**How issues flow through the cycle**:
+- **After TDD implementation** - User tests, provides feedback, issues captured
+- **Issues stored** in `ISSUES_TRACKER.md` for next planning cycle
+- **Next convergence** - Focuses on new feature scope without issue backlog distraction
+- **Next sprint planning** - Considers feature scope AND existing issues together
+  - Decides which issues fit naturally with planned features
+  - Prioritizes critical issues that should be addressed first
+  - Defers lower-priority issues to later sprints
+- **Cycle continues** - Implement → test → capture → converge → plan → implement...
+
 **Outputs feed into**:
-- `convergence-architect` - Uses ISSUES_TRACKER.md to scope MVP
-- `sprint-planner` - Assigns issues to sprints
-- Your todo tracking - Clear, actionable items
+- `sprint-planner` - Reads ISSUES_TRACKER.md and integrates issues into sprint plans
+- Your todo tracking - Clear, actionable items persisted across sessions
 
 ---
 
@@ -93,7 +103,10 @@ Agent: ✅ Captured 2 issues:
 
        Created: ai_working/doc_evergreen/issues/ISSUES_TRACKER.md
 
-       Ready for /converge to scope MVP from these issues.
+       Next steps:
+       - Use /converge to define new feature scope (if planning new features)
+       - Use /plan-sprints to integrate these issues into sprint plans
+       - Or address critical issues immediately with focused work
 ```
 
 ---

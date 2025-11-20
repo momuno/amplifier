@@ -68,7 +68,7 @@
 - `ai_working/[project]/sprints/SPRINT_PLAN.md` (overview)
 - `ai_working/[project]/sprints/SPRINT_0X_[NAME].md` (detailed plans)
 
-**When to use**: After MVP convergence, before implementation starts
+**When to use**: After feature scope convergence, before implementation starts
 
 ---
 
@@ -97,16 +97,45 @@
 
 ---
 
+### 4. Issue Capture: Systematic Issue Tracking
+**Document**: [ISSUE_CAPTURE.md](./ISSUE_CAPTURE.md)
+**Command**: `/convergent-dev:4-capture-issues [project-name]`
+
+**Purpose**: Systematically capture, investigate, and track issues from user feedback, creating persistent documentation that feeds into sprint planning.
+
+**The Five Modes**:
+- 📥 CAPTURE: Parse free-form feedback into discrete issues
+- 🔍 INVESTIGATE: Understand root causes (delegates to bug-hunter for complex cases)
+- 📝 DOCUMENT: Create persistent markdown tracking
+- 🔗 INTEGRATE: (Optional) Create beads issues for workflow integration
+- 📊 SUMMARIZE: Provide overview for convergence/sprint planning
+
+**Agent Coordination**:
+- issue-capturer orchestrates the process
+- bug-hunter handles complex investigation (hypothesis-driven debugging)
+
+**Outputs**:
+- `ISSUES_TRACKER.md` (master list)
+- Individual issue files with full investigation details
+- Feeds into next sprint planning cycle
+
+**When to use**: After testing, when gathering feedback, before next iteration, completing convergent-dev cycle
+
+---
+
 ## Workflow Selection Guide
 
 ### "I have a new project idea"
-→ Start with `/converge` to go from idea to MVP
+→ Start with `/converge` to go from idea to feature scope
 
-### "I have an MVP definition ready"
+### "I have a feature scope definition ready"
 → Use `/plan-sprints` to break it into sprints
 
 ### "I have sprint plans ready"
 → Use `/tdd-cycle` to implement each sprint
+
+### "I've completed implementation and have feedback"
+→ Use `/capture-issues` to systematically track issues for next cycle
 
 ### "I'm not sure what I need"
 → Use `/workflow` to see this overview and decide
@@ -145,12 +174,12 @@ All workflows embody the project's core principles:
 
 **Step 1 - Convergence** (`/converge doc-evergreen`):
 - Explored 6 use cases, 23 features
-- Converged to 3-feature MVP
+- Converged to 3-feature scope
 - Deferred 20 features to v2+
-- Output: MVP_DEFINITION.md + DEFERRED_FEATURES.md
+- Output: FEATURE_SCOPE.md + DEFERRED_FEATURES.md
 
 **Step 2 - Sprint Planning** (`/plan-sprints`):
-- Broke MVP into 4 sprints (2 weeks)
+- Broke feature scope into 4 sprints (2 weeks)
 - Sprint 1: Proof of concept (3 days)
 - Sprint 2: Review workflow (2 days)
 - Sprint 3: CLI + templates (3 days)
@@ -164,7 +193,7 @@ All workflows embody the project's core principles:
 - Refactor for quality
 - Output: Working proof of concept
 
-**Result**: From idea to working MVP in 2 weeks, with all ideas preserved for future iterations.
+**Result**: From idea to working v0.1.0 in 2 weeks, with all ideas preserved for future iterations.
 
 ---
 
@@ -173,7 +202,7 @@ All workflows embody the project's core principles:
 ### During Convergence
 - ✅ Explore freely without self-censoring
 - ✅ Document everything (nothing is lost)
-- ✅ Be ruthless about MVP scope
+- ✅ Be ruthless about feature scope
 - ✅ Trust that deferred ≠ deleted
 
 ### During Sprint Planning
@@ -193,7 +222,7 @@ All workflows embody the project's core principles:
 
 ## Meta-Workflow: The Learning Loop
 
-After completing a sprint or MVP:
+After completing a sprint or feature scope implementation:
 
 1. **Review**: What worked? What didn't?
 2. **Learn**: What assumptions were validated/invalidated?

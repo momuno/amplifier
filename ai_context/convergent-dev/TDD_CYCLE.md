@@ -15,7 +15,7 @@
 - Have sprint plan ready
 - Ready to implement features
 - Want test-first development
-- Following ideation → MVP → sprints → code flow
+- Following ideation → feature scope → sprints → code flow
 
 ❌ **Don't use when:**
 - Don't have sprint plan yet (use `/plan-sprints` first)
@@ -488,8 +488,152 @@ Before marking sprint complete:
 - [ ] Learning goal achieved
 - [ ] Sprint deliverable working
 - [ ] All commits have passing tests
+- [ ] **Sprint results documented** (RESULTS.md created - see below)
 - [ ] **Post-sprint cleanup completed** (see below)
 - [ ] Ready for next sprint
+
+### Sprint Results Documentation
+
+**Purpose**: Capture sprint outcomes, learnings, and recommendations for future reference.
+
+**Responsibility**: The orchestrator (Claude Code) creates RESULTS.md after sprint completion, not a specialized agent.
+
+**When**: After all sprint deliverables are complete and tests are passing, but before post-sprint cleanup.
+
+**Location**: `ai_working/[project]/sprints/[sprint-dir]/SPRINT_[NN]_RESULTS.md`
+
+**Template Structure**:
+
+```markdown
+# Sprint [N]: [Sprint Name] - Results
+
+**Status**: ✅ Complete
+**Date**: [Completion Date]
+**Version**: [e.g., v0.2.0]
+
+## Executive Summary
+
+[2-3 paragraph overview of what was built and why it matters]
+
+## What We Built
+
+### Sprint Goal
+[Original sprint goal from planning]
+
+### Deliverables
+- **[Feature 1]**: [Brief description]
+- **[Feature 2]**: [Brief description]
+- **Tests**: [Number] tests covering [coverage description]
+
+## TDD Cycle Implementation
+
+### RED Phase (Tests First)
+[Description of test-first approach and what tests were written]
+
+### GREEN Phase (Make Tests Pass)
+[Description of implementation to make tests pass]
+
+### REFACTOR Phase (Quality Improvements)
+[Description of refactoring and quality improvements]
+
+## Agent Coordination
+
+### Agents Used
+- **tdd-specialist**: [What they contributed]
+- **zen-architect**: [What they contributed]
+- **modular-builder**: [What they contributed]
+- **[other agents]**: [What they contributed]
+
+### Coordination Patterns
+[How agents worked together, what worked well, what could improve]
+
+## Key Learnings
+
+### Technical Insights
+- [Learning 1]
+- [Learning 2]
+- [Learning 3]
+
+### Process Insights
+- [Learning 1]
+- [Learning 2]
+
+### What Went Well
+- [Success 1]
+- [Success 2]
+
+### What Could Improve
+- [Challenge 1]
+- [Challenge 2]
+
+## Success Criteria Assessment
+
+✅ **[Criterion 1]**: [Assessment]
+✅ **[Criterion 2]**: [Assessment]
+⚠️ **[Criterion 3]**: [Assessment if partially met]
+❌ **[Criterion 4]**: [Assessment if not met]
+
+## Recommendations for Next Sprint
+
+### Priority Changes
+[Any adjustments to roadmap based on learnings]
+
+### Technical Debt
+[Any technical debt identified that should be addressed]
+
+### Architecture Decisions
+[Any architectural insights that inform future work]
+
+## Files Created
+
+**Production Code**:
+- `path/to/file1.py` - [Purpose]
+- `path/to/file2.py` - [Purpose]
+
+**Tests**:
+- `tests/test_file1.py` - [What it tests]
+- `tests/test_file2.py` - [What it tests]
+
+**Documentation**:
+- `docs/file.md` - [Purpose]
+
+## Statistics
+
+- **Total Tests**: [N] ([N] unit, [N] integration)
+- **Test Coverage**: [X]%
+- **Lines of Code**: [Production] production, [Test] test
+- **Files Created**: [N] production, [N] test
+- **Sprint Duration**: [N] days/hours
+- **Agent Invocations**: [tdd-specialist: N, zen-architect: N, modular-builder: N]
+
+## Conclusion
+
+[1-2 paragraph wrap-up of sprint success and readiness for next sprint]
+```
+
+**Key Principles**:
+
+1. **Document outcomes, not just activities** - Focus on what was achieved and learned
+2. **Capture agent coordination patterns** - Help improve future agent workflows
+3. **Honest assessment** - Note what didn't work as well as what did
+4. **Actionable recommendations** - Concrete suggestions for next sprint
+5. **Comprehensive statistics** - Quantify the work for progress tracking
+
+**Example Reference**: See `ai_working/doc_evergreen/sprints/v0.1.0-template-system/SPRINT_01_RESULTS.md` for a complete example.
+
+**Orchestrator Workflow**:
+
+```
+After sprint completion:
+1. Review sprint plan and acceptance criteria
+2. Gather test results and coverage statistics
+3. Review agent coordination logs/outputs
+4. Identify key learnings and insights
+5. Assess success criteria honestly
+6. Create RESULTS.md using template above
+7. Commit with message: "docs: add Sprint [N] results"
+8. Proceed to post-sprint cleanup
+```
 
 ### Post-Sprint Cleanup Phase
 
@@ -684,7 +828,7 @@ The agent specializes in:
 ## Integration with Other Workflows
 
 **Before this workflow**:
-- Used `/converge` for MVP
+- Used `/converge` for feature scope
 - Used `/plan-sprints` for sprint breakdown
 - Have detailed sprint plan
 
@@ -702,7 +846,7 @@ The agent specializes in:
 
 **Complete chain**:
 ```
-Idea → [/converge] → MVP → [/plan-sprints] → Sprints → [/tdd-cycle] → Code
+Idea → [/converge] → Feature Scope → [/plan-sprints] → Sprints → [/tdd-cycle] → Code → [/capture-issues] → (cycle repeats)
 ```
 
 ---

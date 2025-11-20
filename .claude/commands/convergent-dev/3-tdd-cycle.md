@@ -34,13 +34,14 @@ Implement sprint features using Test-Driven Development with agent coordination.
 4. Commit on green
 5. Next test
 
-**Post-sprint cleanup:**
-1. Review codebase for obsolete files
-2. Remove functions/classes replaced by sprint work
-3. Clean up unused imports and dependencies
-4. Remove any leftover test mocks or fixtures
-5. Ensure no irrelevant context remains
-6. Final commit with cleanup changes
+**Post-sprint documentation and cleanup:**
+1. **Create RESULTS.md** documenting sprint outcomes, learnings, and recommendations
+2. Review codebase for obsolete files
+3. Remove functions/classes replaced by sprint work
+4. Clean up unused imports and dependencies
+5. Remove any leftover test mocks or fixtures
+6. Ensure no irrelevant context remains
+7. Final commit with cleanup changes
 
 **Outputs:**
 - Test files (written first)
@@ -55,10 +56,16 @@ Implement sprint features using Test-Driven Development with agent coordination.
 - Feedback during implementation
 
 **After this:**
-- Sprint deliverable complete
+- Sprint deliverable complete and documented
 - All tests passing
 - Code refactored and committed
-- Ready for next sprint with `/convergent-dev:3-tdd-cycle [next-sprint]`
+- **User testing and feedback phase begins:**
+  - Try out the implemented features
+  - Provide feedback on functionality and quality
+  - Report any issues discovered during testing
+  - Post-task-cleanup agent runs (may identify additional minor issues)
+  - Captured issues addressed before moving forward
+- Once satisfied, ready for next sprint with `/convergent-dev:3-tdd-cycle [next-sprint]`
 
 **Philosophy:**
 - Tests first, always (RED-GREEN-REFACTOR)

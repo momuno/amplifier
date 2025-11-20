@@ -1,9 +1,9 @@
-# Workflow: MVP to Sprints (Sprint-Planner)
+# Workflow: Feature Scope to Sprints (Sprint-Planner)
 
-**Purpose**: Break down MVP into executable value-first sprints following lean/agile principles.
+**Purpose**: Break down feature scope into executable value-first sprints following lean/agile principles.
 
 **Agent**: `sprint-planner`
-**Command**: `/plan-sprints [mvp-definition-path]`
+**Command**: `/plan-sprints [feature-scope-path]`
 **Duration**: 20-30 minutes
 **Output**: Sprint plan documents with detailed breakdown
 
@@ -12,15 +12,15 @@
 ## When to Use This Workflow
 
 ✅ **Use when:**
-- Have a converged MVP definition
+- Have a converged feature scope definition
 - Ready to plan implementation
 - Need to break down features into deliverables
 - Want realistic timeline with milestones
-- Following the ideation → MVP → sprints → code flow
+- Following the ideation → feature scope → sprints → code flow
 
 ❌ **Don't use when:**
-- Don't have clear MVP scope yet (use `/converge` first)
-- MVP is tiny (1-2 days work, just implement directly)
+- Don't have clear feature scope yet (use `/converge` first)
+- Feature scope is tiny (1-2 days work, just implement directly)
 - Requirements are still changing rapidly
 
 ---
@@ -51,9 +51,9 @@
 
 ---
 
-## Input: MVP Definition
+## Input: Feature Scope Definition
 
-The sprint-planner needs your `MVP_DEFINITION.md` which should contain:
+The sprint-planner needs your `FEATURE_SCOPE.md` which should contain:
 
 **Required**:
 - The ONE problem statement
@@ -67,13 +67,13 @@ The sprint-planner needs your `MVP_DEFINITION.md` which should contain:
 - Technical specifications
 - Risks and mitigation strategies
 
-**Example**: `ai_working/doc_evergreen/MVP_DEFINITION.md`
+**Example**: `ai_working/doc_evergreen/convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md`
 
 ---
 
 ## The Sprint Planning Process
 
-### Step 1: Analyze MVP Scope
+### Step 1: Analyze Feature Scope
 
 **Agent reviews**:
 - Feature complexity
@@ -116,7 +116,7 @@ Sprint 3: CLI + templates
   → Generalizes Sprint 1+2
 
 Sprint 4: Context control
-  → Completes MVP
+  → Completes feature scope
   → Final polish
 ```
 
@@ -196,7 +196,7 @@ Sprint 1 TDD Order:
 - Simple sprint: 2-3 days
 - Moderate sprint: 3-4 days
 - Complex sprint: 4-5 days
-- Total MVP: Usually 1-4 weeks
+- Total feature scope: Usually 1-4 weeks
 
 ---
 
@@ -234,7 +234,7 @@ Sprint 1 TDD Order:
 ## Example: doc-evergreen Sprint Breakdown
 
 ### Input
-MVP with 3 features, 2-week timeline
+feature scope with 3 features, 2-week timeline
 
 ### Output
 4 sprints created:
@@ -260,7 +260,7 @@ MVP with 3 features, 2-week timeline
 **Sprint 4: Context Control (2 days)**
 - User-specified sources
 - Glob patterns
-- Completes MVP
+- Completes feature scope
 - ~500 LOC
 
 **Total**: 10 days, ~2,050 LOC (including tests)
@@ -407,7 +407,7 @@ Each sprint plan includes TDD implementation order:
 **Characteristics**:
 - Fills remaining gaps
 - Polish and refinement
-- Completes MVP scope
+- Completes feature scope scope
 - Usually final sprint
 
 **Example**: doc-evergreen Sprint 4 (context control)
@@ -461,7 +461,7 @@ Sprint planning succeeded when:
 
 ✅ Each sprint delivers working software
 ✅ First sprint validates core assumption
-✅ Total timeline matches MVP timeline
+✅ Total timeline matches feature scope timeline
 ✅ Clear what's in/out of each sprint
 ✅ TDD order is obvious
 ✅ Acceptance criteria are testable
@@ -516,8 +516,8 @@ Sprint planning succeeded when:
 ## Integration with Other Workflows
 
 **Before this workflow**:
-- Used `/converge` to create MVP definition
-- Have clear MVP scope (3-5 features)
+- Used `/converge` to create feature scope definition
+- Have clear feature scope scope (3-5 features)
 
 **After this workflow**:
 - Have detailed sprint plans
@@ -526,7 +526,7 @@ Sprint planning succeeded when:
 
 **Complete chain**:
 ```
-Idea → [/converge] → MVP → [/plan-sprints] → Sprints → [/tdd-cycle] → Code
+Idea → [/converge] → feature scope → [/plan-sprints] → Sprints → [/tdd-cycle] → Code
 ```
 
 ---
@@ -540,19 +540,19 @@ Idea → [/converge] → MVP → [/plan-sprints] → Sprints → [/tdd-cycle] �
 
 **Example**:
 ```
-/plan-sprints ai_working/doc_evergreen/MVP_DEFINITION.md
+/plan-sprints ai_working/doc_evergreen/feature scope_DEFINITION.md
 ```
 
 **What happens**:
 1. Loads sprint-planner agent
-2. Agent reads MVP definition
+2. Agent reads feature scope definition
 3. Analyzes features and complexity
 4. Creates sprint breakdown
 5. Generates SPRINT_PLAN.md + individual sprint docs
 6. Places in `ai_working/[project]/sprints/`
 
 ### Tips for Using the Command
-- Ensure MVP definition is complete
+- Ensure feature scope definition is complete
 - Review sprint plans after creation
 - Adjust if needed before starting implementation
 - Use sprint plans as implementation blueprint
@@ -590,4 +590,4 @@ This workflow embodies:
 
 ---
 
-**Ready to plan your MVP sprints? Run `/plan-sprints [mvp-path]`**
+**Ready to plan your feature scope sprints? Run `/plan-sprints [mvp-path]`**

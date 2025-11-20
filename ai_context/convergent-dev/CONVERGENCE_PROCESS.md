@@ -1,11 +1,11 @@
-# Workflow: Ideation to MVP (Convergence-Architect)
+# Workflow: Ideation to Feature Scope (Convergence-Architect)
 
-**Purpose**: Transform divergent exploration into a focused MVP definition with all ideas thoughtfully preserved.
+**Purpose**: Transform divergent exploration into a focused feature scope definition with all ideas thoughtfully preserved.
 
 **Agent**: `convergence-architect`
 **Command**: `/converge [project-name]`
 **Duration**: 30-60 minutes
-**Output**: MVP_DEFINITION.md + DEFERRED_FEATURES.md
+**Output**: FEATURE_SCOPE.md + DEFERRED_FEATURES.md + Updated MASTER_BACKLOG.md
 
 ---
 
@@ -14,14 +14,40 @@
 ✅ **Use when:**
 - Starting a new project or feature
 - Have lots of ideas but unclear scope
-- Need to narrow possibilities to shippable MVP
+- Need to narrow possibilities to shippable feature scope
 - Feeling overwhelmed by options
 - Want to ensure nothing gets lost while converging
+- Pure exploration/ideation (capturing ideas even if nothing becomes "next")
+- Finding next feature from existing backlog
 
 ❌ **Don't use when:**
 - Requirements are already crystal clear
-- MVP scope is obvious and small
+- Feature scope is obvious and small
 - Just need to implement a well-defined task
+
+---
+
+## Backlog Integration
+
+**The convergence-architect agent reviews your existing `MASTER_BACKLOG.md` to:**
+
+1. **Surface relevant items** - "You mentioned X, which relates to item Y in the backlog"
+2. **Suggest promising candidates** - "Item Z from the backlog might be a good next feature"
+3. **Connect related ideas** - "This new idea builds on backlog item W"
+4. **Remind you of past ideation** - You won't remember everything - the backlog will
+
+**Two common scenarios:**
+
+**Scenario 1: Pure Exploration/Ideation**
+- Dump ideas freely, capture everything
+- Most/all ideas might get deferred to backlog - that's perfectly fine!
+- Goal is to preserve thinking, not force a feature scope
+
+**Scenario 2: Finding Next Feature**
+- Agent surfaces promising items from backlog
+- New ideas explored alongside backlog review
+- Convergence identifies the best "next vertical slice"
+- Remaining ideas return to backlog
 
 ---
 
@@ -104,14 +130,22 @@ Organized into:
 - Clarify relationships
 - Add missing connections
 
+**Important for Exploration Mode**:
+This CAPTURE phase is critical even when doing pure exploration. It ensures backlog items are:
+- Relevant to the project
+- Well-defined and structured
+- Not just raw brain dumps
+
+Without CAPTURE, the backlog becomes disorganized notes. With CAPTURE, it becomes a curated collection of potential features.
+
 **Transition Signal**:
-Agent announces: "Let's transition to PHASE 3: CONVERGE. In this phase, I'll help you decide what to build FIRST..."
+Agent announces: "Let's transition to PHASE 3: CONVERGE. In this phase, I'll help you decide what to build FIRST..." (or "Let's pause here and capture everything to the backlog" in exploration mode)
 
 ---
 
 ### 🎯 Phase 3: CONVERGE (15-20 minutes)
 
-**Goal**: Identify the MVP - what to build FIRST.
+**Goal**: Identify the feature scope - what to build FIRST.
 
 **What Happens**:
 - Agent asks forcing questions
@@ -147,7 +181,7 @@ Converged to:
 - Everything else deferred
 ```
 
-**Agent Creates**: `MVP_DEFINITION.md` during this phase
+**Agent Creates**: `FEATURE_SCOPE.md` during this phase
 
 **Your Role**:
 - Answer forcing questions honestly
@@ -158,16 +192,16 @@ Converged to:
 **Key Decision**: What teaches us the most with least effort?
 
 **Transition Signal**:
-Agent announces: "Let's transition to PHASE 4: DEFER. We'll preserve all ideas not in MVP..."
+Agent announces: "Let's transition to PHASE 4: DEFER. We'll preserve all ideas not in feature scope..."
 
 ---
 
 ### 💾 Phase 4: DEFER (10-15 minutes)
 
-**Goal**: Preserve all non-MVP ideas with clear rationale.
+**Goal**: Preserve all non-scope ideas with clear rationale.
 
 **What Happens**:
-- Agent captures everything NOT in MVP
+- Agent captures everything NOT in feature scope
 - Documents WHY each thing is deferred
 - Sets "reconsider when..." conditions
 - Organizes by priority (v2, future, parking lot)
@@ -201,13 +235,13 @@ Agent announces: "🎉 Convergence Complete!" with summary of all phases and art
 
 ## Outputs Created
 
-### 1. `ai_working/[project]/MVP_DEFINITION.md`
+### 1. `ai_working/[project]/convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md`
 
 **Contains**:
 - The ONE problem statement
 - The specific user (not hypothetical)
 - Current solution and why it fails
-- MVP solution (3-5 features with rationale)
+- Feature scope solution (3-5 features with rationale)
 - Success criteria
 - Timeline
 - Architecture overview
@@ -215,15 +249,26 @@ Agent announces: "🎉 Convergence Complete!" with summary of all phases and art
 
 **Purpose**: Blueprint for implementation.
 
-### 2. `ai_working/[project]/DEFERRED_FEATURES.md`
+**Note**: Version number (vX.Y.Z) is NOT assigned here - the sprint-planner determines that.
+
+### 2. `ai_working/[project]/convergence/YYYY-MM-DD-feature-name/DEFERRED_FEATURES.md`
 
 **Contains**:
-- All explored features not in MVP
+- All explored features not in feature scope
 - Organized by priority
 - Each with "reconsider when" conditions
 - Preserves the full divergent exploration
 
 **Purpose**: Nothing lost, clear path for v2+.
+
+### 3. `ai_working/[project]/convergence/MASTER_BACKLOG.md` (updated)
+
+**Contains**:
+- Consolidated deferred features from ALL convergence sessions
+- Single source of truth for backlog
+- Reviewed at start of each convergence session
+
+**Purpose**: Ensure no ideas are forgotten across multiple convergence cycles.
 
 ---
 
@@ -250,7 +295,7 @@ Agent announces: "🎉 Convergence Complete!" with summary of all phases and art
 - Trust the deferral process
 
 ❌ **Don't:**
-- Try to fit everything in MVP
+- Try to fit everything in feature scope
 - Fear losing good ideas (they're preserved!)
 - Ignore the "embarrassingly simple" question
 - Forget to identify the ONE problem
@@ -259,27 +304,27 @@ Agent announces: "🎉 Convergence Complete!" with summary of all phases and art
 ✅ **Do:**
 - Let phases unfold naturally
 - Trust the agent's guidance
-- Think of MVP as first learning iteration
+- Think of initial feature scope as first learning iteration
 - Remember: defer ≠ delete
 
 ❌ **Don't:**
 - Skip phases
-- Make MVP "version 1.0" (it's v0.1!)
+- Make initial scope "version 1.0" (start with v0.1.0!)
 - Treat deferred features as rejected
-- Rush to implementation without clear MVP
+- Rush to implementation without clear feature scope
 
 ---
 
 ## Common Challenges and Solutions
 
 ### Challenge: "Everything feels essential!"
-**Solution**: Use the forcing questions. If you only had 1 week, what would you build? That's probably your MVP.
+**Solution**: Use the forcing questions. If you only had 1 week, what would you build? That's probably your feature scope.
 
 ### Challenge: "I'm afraid to defer good features"
-**Solution**: Deferred features have clear "reconsider when" conditions. You WILL come back to them after learning from MVP.
+**Solution**: Deferred features have clear "reconsider when" conditions. You WILL come back to them after learning from initial release.
 
-### Challenge: "The MVP feels too simple"
-**Solution**: That's the point! Simple MVP = fast learning = informed next iteration. Complex MVP = slow delivery = assumptions untested.
+### Challenge: "The feature scope feels too simple"
+**Solution**: That's the point! Simple scope = fast learning = informed next iteration. Complex scope = slow delivery = assumptions untested.
 
 ### Challenge: "I keep adding 'just one more feature'"
 **Solution**: For each feature, ask: "Do we NEED this for learning, or are we GUESSING users want it?" Guess = defer.
@@ -291,12 +336,13 @@ Agent announces: "🎉 Convergence Complete!" with summary of all phases and art
 You've successfully converged when:
 
 ✅ You can state THE ONE problem in one sentence
-✅ MVP has 3-5 features max (not 10+)
+✅ Feature scope has 3-5 features max (not 10+)
 ✅ Each feature has clear "why essential" rationale
 ✅ You feel good about what's deferred (not lost)
 ✅ You have clear success criteria
-✅ You know what you'll learn from MVP
+✅ You know what you'll learn from initial release
 ✅ Timeline feels achievable (usually 1-4 weeks)
+✅ **OR** all ideas captured to backlog with intent to return and define scope (pure exploration is valid, but FEATURE_SCOPE.md must eventually be completed before sprint planning)
 
 ---
 
@@ -328,26 +374,29 @@ You've successfully converged when:
 - Clear path for v2+
 
 **Total time**: ~55 minutes
-**Output**: Clear MVP + preserved exploration
+**Output**: Clear feature scope + preserved exploration
 
 ---
 
 ## After Convergence: Next Steps
 
 1. **Review the artifacts**:
-   - Read MVP_DEFINITION.md thoroughly
+   - Read FEATURE_SCOPE.md thoroughly
    - Check DEFERRED_FEATURES.md for clarity
+   - Review MASTER_BACKLOG.md to see consolidated ideas
 
 2. **Adjust if needed**:
    - Scope still too big? Re-converge
    - Something missing? Add to deferred list
+   - Pure exploration session? No adjustment needed - ideas are captured!
 
 3. **Move to sprint planning**:
-   - Use `/plan-sprints` to break MVP into sprints
+   - Use `/plan-sprints` to break feature scope into sprints with version number
+   - Sprint planner will also consider any tracked issues from ISSUES_TRACKER.md
    - This is the natural next step
 
 4. **Share with stakeholders**:
-   - MVP definition is stakeholder-ready
+   - Feature scope definition is stakeholder-ready
    - Shows what's in scope and what's intentionally deferred
 
 ---
@@ -359,17 +408,18 @@ You've successfully converged when:
 - Possibly some rough notes or explorations
 
 **After this workflow**:
-- Clear MVP definition
-- All ideas preserved
+- Clear feature scope definition (or all ideas captured if pure exploration)
+- All ideas preserved in MASTER_BACKLOG.md
 - Ready for sprint planning
 
 **Next workflow**:
-- Use `/plan-sprints` with your MVP_DEFINITION.md
-- Breaks MVP into executable sprints
+- Use `/plan-sprints` with your FEATURE_SCOPE.md
+- Sprint planner breaks feature scope into executable sprints with version number
+- Sprint planner also considers existing issues from ISSUES_TRACKER.md
 
 **Complete chain**:
 ```
-Idea → [/converge] → MVP → [/plan-sprints] → Sprints → [/tdd-cycle] → Code
+Idea → [/converge] → Feature Scope → [/plan-sprints] → Sprints → [/tdd-cycle] → Code → [/capture-issues] → (cycle repeats)
 ```
 
 ---
@@ -388,10 +438,12 @@ Idea → [/converge] → MVP → [/plan-sprints] → Sprints → [/tdd-cycle] �
 
 **What happens**:
 1. Loads convergence-architect agent
-2. Agent greets and explains process
-3. Begins DIVERGE phase
-4. Progresses through all 4 phases
-5. Creates MVP_DEFINITION.md and DEFERRED_FEATURES.md
+2. Agent reviews existing MASTER_BACKLOG.md (if present)
+3. Agent greets and explains process
+4. Begins DIVERGE phase (surfaces relevant backlog items)
+5. Progresses through all 4 phases
+6. Creates FEATURE_SCOPE.md and DEFERRED_FEATURES.md
+7. Updates MASTER_BACKLOG.md with new deferred features
 
 ### Tips for Using the Command
 - Have your ideas ready (but rough is fine!)
@@ -408,11 +460,11 @@ This workflow embodies:
 **Ruthless Simplicity**:
 - Start with minimum viable scope
 - Defer everything not essential
-- 3-5 features max for MVP
+- 3-5 features max for initial release
 
 **Trust in Emergence**:
 - Don't design everything upfront
-- Learn from MVP before building v2
+- Learn from initial release before building v2
 - Let complexity justify itself
 
 **Value-First Thinking**:
