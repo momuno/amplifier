@@ -157,7 +157,12 @@ class ChunkedGenerator:
         """
         # Validate prompt exists
         if section.prompt is None:
-            raise ValueError(f"Section '{section.heading}' has no prompt")
+            raise ValueError(
+                f"Section '{section.heading}' has no prompt.\n"
+                f"Fix: Add a 'prompt' field to this section in your template:\n"
+                f'  "prompt": "Instructions for generating this section..."\n'
+                f"See: TEMPLATES.md#writing-effective-prompts"
+            )
 
         # Read source files
         source_content_parts = []

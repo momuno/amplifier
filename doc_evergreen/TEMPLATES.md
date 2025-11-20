@@ -104,52 +104,287 @@ Good prompts are:
 "prompt": "List all configuration options with their default values, acceptable values, and what each option controls. Organize by category (Database, API, Security, etc.)"
 ```
 
-## Source Files
+## Source Specification
+
+### Understanding Sources
+
+Sources are **specified per-section** in your template. Each section gets its own list of source files that provide context for generating that specific section.
+
+**Key concept**: Sources are not global—they're defined individually for each section based on what information that section needs.
+
+```json
+{
+  "sections": [
+    {
+      "heading": "API Documentation",
+      "prompt": "Document all REST endpoints",
+      "sources": ["src/api/*.py", "src/models.py"]  // ← Section-specific sources
+    },
+    {
+      "heading": "Installation",
+      "prompt": "Provide installation instructions",
+      "sources": ["README.md", "pyproject.toml"]     // ← Different sources
+    }
+  ]
+}
+```
 
 ### How Sources Work
 
-Sources provide context to the AI when generating content. The AI reads these files and uses them to:
-- Extract accurate information
-- Maintain consistency with existing docs
+When generating a section, the system:
+1. **Resolves** source patterns to actual file paths
+2. **Reads** each resolved file's content
+3. **Provides** file contents to the AI as context
+4. **AI uses** this context to generate accurate, relevant content
+
+The AI reads these files to:
+- Extract accurate information about your code
+- Maintain consistency with existing documentation
 - Include relevant code examples
-- Understand project structure
+- Understand project structure and conventions
+- Reference actual implementation details
 
-### Source File Patterns
+### Glob Pattern Support
 
-You can specify sources in multiple ways:
+Doc-evergreen uses Python's `glob` module, supporting standard glob syntax:
 
-**Exact paths**:
+#### Basic Patterns
+
+| Pattern | Matches | Example |
+|---------|---------|---------|
+| `*.md` | All .md files in current directory | `README.md`, `CHANGELOG.md` |
+| `src/*.py` | All .py files in src/ | `src/main.py`, `src/utils.py` |
+| `**/*.md` | All .md files recursively | `docs/guide.md`, `docs/api/endpoints.md` |
+| `src/**/*.py` | All .py files in src/ and subdirectories | `src/api/routes.py`, `src/models/user.py` |
+
+#### Specific File Patterns
+
 ```json
-"sources": ["README.md", "src/auth.py"]
+// Single file
+"sources": ["README.md"]
+
+// Multiple specific files
+"sources": ["README.md", "INSTALL.md", "pyproject.toml"]
+
+// Mix specific files and patterns
+"sources": ["README.md", "src/**/*.py", "docs/architecture.md"]
 ```
 
-**Glob patterns** (wildcards):
+#### Directory Patterns
+
 ```json
-"sources": ["docs/**/*.md", "src/**/*.py"]
+// All Python files in a directory
+"sources": ["amplifier/memory/*.py"]
+
+// All files recursively in a directory
+"sources": ["amplifier/memory/**/*"]
+
+// Specific file types across multiple directories
+"sources": ["amplifier/*/README.md"]
 ```
 
-**Multiple related files**:
+#### Advanced Patterns
+
 ```json
-"sources": [
-  "amplifier/memory/README.md",
-  "amplifier/extraction/README.md",
-  "amplifier/search/README.md"
-]
+// Multiple file types
+"sources": ["src/**/*.{py,js,ts}"]
+
+// Exclude patterns (use negative patterns carefully)
+"sources": ["src/**/*.py"]  // Note: Exclusions handled at glob level
+
+// All config files
+"sources": ["*.toml", "*.json", "*.yaml", "*.yml"]
+```
+
+### Source Resolution
+
+**Important**: Source paths are resolved **relative to the template file's location**.
+
+#### Resolution Examples
+
+If your template is at `project/templates/readme.json`:
+
+```json
+{
+  "sources": ["../README.md"]           // → project/README.md
+}
+```
+
+```json
+{
+  "sources": ["../src/**/*.py"]         // → All .py files in project/src/
+}
+```
+
+```json
+{
+  "sources": ["README.md"]              // → project/templates/README.md (probably wrong!)
+}
+```
+
+**Best Practice**: Use `../` to go up from templates directory to project root:
+
+```
+project/
+├── templates/
+│   └── readme.json          ← Template here
+├── README.md                ← Use "../README.md"
+├── src/
+│   ├── main.py              ← Use "../src/**/*.py"
+│   └── utils/
+│       └── helper.py        ← Matched by "../src/**/*.py"
+```
+
+### Common Source Patterns
+
+#### Pattern: README Section
+
+```json
+{
+  "heading": "Overview",
+  "prompt": "Summarize project purpose and key features",
+  "sources": [
+    "../README.md",                    // Existing README for consistency
+    "../pyproject.toml",               // Project metadata
+    "../docs/architecture.md"          // High-level architecture
+  ]
+}
+```
+
+#### Pattern: API Documentation
+
+```json
+{
+  "heading": "API Reference",
+  "prompt": "Document all public API endpoints with examples",
+  "sources": [
+    "../src/api/**/*.py",              // All API route files
+    "../src/models.py",                // Data models
+    "../tests/test_api.py"             // API usage examples
+  ]
+}
+```
+
+#### Pattern: Module Documentation
+
+```json
+{
+  "heading": "Memory Module",
+  "prompt": "Document the memory system architecture and usage",
+  "sources": [
+    "../amplifier/memory/README.md",   // Module docs
+    "../amplifier/memory/*.py",        // Module implementation
+    "../tests/test_memory.py"          // Usage examples
+  ]
+}
+```
+
+#### Pattern: Installation Guide
+
+```json
+{
+  "heading": "Installation",
+  "prompt": "Provide step-by-step installation instructions",
+  "sources": [
+    "../README.md",                    // Existing install docs
+    "../pyproject.toml",               // Python dependencies
+    "../package.json",                 // Node dependencies (if applicable)
+    "../Dockerfile"                    // Container setup (if applicable)
+  ]
+}
 ```
 
 ### Choosing Good Sources
 
-**✅ Include**:
-- Existing documentation you want to maintain consistency with
-- Source code files containing implementation details
-- Configuration files (pyproject.toml, package.json, etc.)
-- Architecture documents and design docs
+#### ✅ DO Include
 
-**❌ Avoid**:
-- Generated files (build artifacts)
-- Binary files
-- Very large files that don't contain relevant info
-- Files unrelated to the section being generated
+- **Existing documentation**: Maintain consistency with current docs
+- **Source code**: Extract accurate implementation details
+- **Configuration files**: Show actual setup (pyproject.toml, package.json, etc.)
+- **Test files**: Demonstrate real usage patterns
+- **Architecture docs**: Provide high-level context
+- **README files**: Use module-specific READMEs for context
+
+#### ❌ DON'T Include
+
+- **Generated files**: Build artifacts, compiled code
+- **Binary files**: Images, PDFs (unless absolutely necessary)
+- **Very large files**: Files >100KB that aren't directly relevant
+- **Irrelevant files**: Files unrelated to the section topic
+- **Sensitive files**: Credentials, secrets, private keys
+- **Dependency code**: node_modules/, .venv/ contents
+
+### Source File Limits
+
+- **Per section**: 10-20 source files recommended
+- **File size**: Files >100KB may hit context limits
+- **Total context**: All sources combined should stay under 50KB for best results
+
+**If you need more context**:
+1. Split into multiple sections with focused sources
+2. Use more specific glob patterns
+3. Curate which files are most relevant
+4. Consider creating summary documents as sources
+
+### Troubleshooting Sources
+
+#### No files matched by glob pattern
+
+**Symptoms**: Warning or error about zero source files
+
+**Causes**:
+- Pattern is relative to template location, not current directory
+- Pattern syntax is incorrect
+- Files don't exist at specified paths
+
+**Solutions**:
+```json
+// Check pattern is relative to template
+"sources": ["../src/*.py"]  // Not "src/*.py" if template is in templates/
+
+// Verify files exist
+"sources": ["../README.md"]  // ls ../README.md from template directory
+
+// Use more specific patterns
+"sources": ["../amplifier/memory/*.py"]  // Not "../*.py"
+```
+
+#### Wrong files are being used
+
+**Symptoms**: Generated content references unexpected files
+
+**Causes**:
+- Glob pattern too broad
+- Sources include unrelated files
+
+**Solutions**:
+```json
+// Bad: Too broad
+"sources": ["../**/*.py"]  // Matches EVERYTHING
+
+// Good: Specific
+"sources": ["../amplifier/memory/**/*.py"]
+
+// Better: Curated list
+"sources": [
+  "../amplifier/memory/core.py",
+  "../amplifier/memory/store.py"
+]
+```
+
+#### Sources not found relative to template
+
+**Symptoms**: "Source file not found" errors
+
+**Cause**: Paths are resolved from template location, not working directory
+
+**Solution**: Always use relative paths from template:
+```json
+// If template is at: project/templates/readme.json
+// And source is at:  project/README.md
+
+"sources": ["../README.md"]  // Correct: Go up one level
+```
 
 ## Nested Sections
 

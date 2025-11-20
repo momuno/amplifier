@@ -82,7 +82,20 @@ def validate_all_sources(template: Template, base_dir: Path) -> SourceValidation
 
         # Check if section has any sources
         if not all_sources:
-            error = f"Section '{section_name}' has no sources (no files found)"
+            patterns_str = ", ".join(f"'{p}'" for p in section.sources)
+            error = (
+                f"Section '{section_name}' has no sources - no files matched patterns: {patterns_str}\n"
+                f"\n"
+                f"Possible causes:\n"
+                f"  1. Patterns are relative to template location (use '../' to go up)\n"
+                f"  2. Files don't exist at specified paths\n"
+                f"  3. Pattern syntax is incorrect\n"
+                f"\n"
+                f"Fix:\n"
+                f"  - Check paths are relative to template: '../src/*.py'\n"
+                f"  - Verify files exist: ls {base_dir}/your-pattern\n"
+                f"  - See: TEMPLATES.md#source-resolution\n"
+            )
             errors.append(error)
             raise SourceValidationError(error)
 
