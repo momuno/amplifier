@@ -211,11 +211,17 @@ def regen_doc(template_path: str, auto_approve: bool, output: str | None):
         click.echo(f"Error: Failed to parse template: {e}", err=True)
         raise click.Abort()
 
-    # 3. Generate new content using ChunkedGenerator
+    # 3. Generate new content using ChunkedGenerator with progress feedback
     try:
         generator = ChunkedGenerator(template_obj, Path(template_path).parent)
+
+        # Progress callback to show generation progress
+        def progress_callback(msg: str) -> None:
+            """Display progress messages during generation."""
+            click.echo(msg, nl=False)  # nl=False since messages include newlines
+
         # Handle both coroutine (real generator) and string (mocked generator)
-        result = generator.generate()
+        result = generator.generate(progress_callback=progress_callback)
         if hasattr(result, "__await__"):
             new_content: str = asyncio.run(result)  # type: ignore[arg-type]
         else:

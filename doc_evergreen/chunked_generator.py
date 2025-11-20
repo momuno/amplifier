@@ -4,6 +4,8 @@ Implements stack-based DFS traversal with upfront source validation.
 """
 
 import logging
+import time
+from collections.abc import Callable
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -72,8 +74,11 @@ class ChunkedGenerator:
             )
         return self._agent
 
-    async def generate(self) -> str:
+    async def generate(self, progress_callback: Callable[[str], None] | None = None) -> str:
         """Generate complete document section-by-section.
+
+        Args:
+            progress_callback: Optional callback for progress updates
 
         Returns:
             Complete markdown document
@@ -91,17 +96,33 @@ class ChunkedGenerator:
         # 2. Initialize
         markdown_parts: list[str] = []
 
-        # 3. Traverse and generate sections
-        for section in traverse_dfs(self.template.document.sections):
-            logger.info(f"Generating: {section.heading}")
+        # Count total sections for progress tracking
+        all_sections = list(traverse_dfs(self.template.document.sections))
+        total_sections = len(all_sections)
 
-            # Get context from previous sections
-            section_index = len(markdown_parts)
-            context = self.context_manager.get_context_for_section(section_index)
+        # 3. Traverse and generate sections
+        for idx, section in enumerate(all_sections, 1):
+            logger.info(f"Generating: {section.heading}")
 
             # Get resolved sources for this section
             sources = validation.section_sources.get(section.heading, [])
             logger.info(f"  Sources: {len(sources)} files")
+
+            # Progress: Starting section
+            if progress_callback:
+                source_names = [s.name for s in sources]
+                source_desc = ", ".join(source_names) if source_names else "No sources"
+                file_count = f"{len(sources)} file" if len(sources) == 1 else f"{len(sources)} files"
+
+                progress_callback(f"[{idx}/{total_sections}] Generating: {section.heading}\n")
+                progress_callback(f"      Sources: {source_desc} ({file_count})\n")
+
+            # Track timing
+            start_time = time.time()
+
+            # Get context from previous sections
+            section_index = len(markdown_parts)
+            context = self.context_manager.get_context_for_section(section_index)
 
             # Generate section content
             content = await self.generate_section(section, sources, context)
@@ -111,6 +132,11 @@ class ChunkedGenerator:
 
             # Accumulate markdown
             markdown_parts.append(content)
+
+            # Progress: Section complete
+            if progress_callback:
+                elapsed = time.time() - start_time
+                progress_callback(f"      ✓ Complete ({elapsed:.1f}s)\n")
 
         # 4. Assemble complete document
         return "\n\n".join(markdown_parts)
