@@ -211,76 +211,95 @@ def regen_doc(template_path: str, auto_approve: bool, output: str | None):
         click.echo(f"Error: Failed to parse template: {e}", err=True)
         raise click.Abort()
 
-    # 3. Generate new content using ChunkedGenerator with progress feedback
-    try:
-        generator = ChunkedGenerator(template_obj, Path(template_path).parent)
+    # 3. Initialize generator
+    generator = ChunkedGenerator(template_obj, Path(template_path).parent)
 
-        # Progress callback to show generation progress
-        def progress_callback(msg: str) -> None:
-            """Display progress messages during generation."""
-            click.echo(msg, nl=False)  # nl=False since messages include newlines
-
-        # Handle both coroutine (real generator) and string (mocked generator)
-        result = generator.generate(progress_callback=progress_callback)
-        if hasattr(result, "__await__"):
-            new_content: str = asyncio.run(result)  # type: ignore[arg-type]
-        else:
-            new_content = str(result)
-    except Exception as e:
-        # Check if it's a source validation error for templates with no sources
-        error_msg = str(e)
-        if "no sources" in error_msg.lower():
-            # For templates with no sources, generate minimal placeholder content
-            # This allows the workflow to complete for testing/validation purposes
-            click.echo("Warning: Template has no source files - generating placeholder content", err=True)
-            new_content = f"# {template_obj.document.title}\n\n*No source files provided*\n"
-        else:
-            click.echo(f"Error: Generation failed: {e}", err=True)
-            raise click.Abort()
+    # Progress callback to show generation progress
+    def progress_callback(msg: str) -> None:
+        """Display progress messages during generation."""
+        click.echo(msg, nl=False)  # nl=False since messages include newlines
 
     # 4. Determine output path
     output_path = Path(output) if output else Path(output_path_from_template)
 
-    # 5. Detect changes
-    has_changes, diff_lines = detect_changes(output_path, new_content)
+    # 5. Iterative refinement loop
+    iteration = 0
 
-    # 6. If no changes, report and exit
-    if not has_changes:
-        click.echo("No changes detected - content is identical to existing file.")
-        return
+    while True:
+        iteration += 1
 
-    # 7. Show diff
-    if diff_lines == ["NEW FILE"]:
-        click.echo(f"Creating new file: {output_path}")
-    else:
-        click.echo("Changes detected:")
-        for line in diff_lines:
-            click.echo(line.rstrip())
+        # Generate new content
+        try:
+            # Handle both coroutine (real generator) and string (mocked generator)
+            result = generator.generate(progress_callback=progress_callback)
+            if hasattr(result, "__await__"):
+                new_content: str = asyncio.run(result)  # type: ignore[arg-type]
+            else:
+                new_content = str(result)
+        except Exception as e:
+            # Check if it's a source validation error for templates with no sources
+            error_msg = str(e)
+            if "no sources" in error_msg.lower():
+                # For templates with no sources, generate minimal placeholder content
+                # This allows the workflow to complete for testing/validation purposes
+                click.echo("Warning: Template has no source files - generating placeholder content", err=True)
+                new_content = f"# {template_obj.document.title}\n\n*No source files provided*\n"
+            else:
+                click.echo(f"Error: Generation failed: {e}", err=True)
+                raise click.Abort()
 
-    # 8. Get approval (unless auto-approve)
-    if not auto_approve and not click.confirm("\nApply these changes?"):
-        click.echo("Aborted - changes not applied")
-        return
+        # Detect changes
+        has_changes, diff_lines = detect_changes(output_path, new_content)
 
-    # 9. Write file
-    try:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-    except PermissionError:
-        click.echo(f"Error: Permission denied creating directory {output_path.parent}", err=True)
-        raise click.Abort()
-    except Exception as e:
-        click.echo(f"Error creating directory: {e}", err=True)
-        raise click.Abort()
+        # If no changes, report and exit
+        if not has_changes:
+            click.echo("No changes detected - content is identical to existing file.")
+            break
 
-    try:
-        output_path.write_text(new_content, encoding="utf-8")
-        click.echo(f"✓ File written: {output_path}")
-    except PermissionError:
-        click.echo(f"Error: Permission denied writing to {output_path}", err=True)
-        raise click.Abort()
-    except Exception as e:
-        click.echo(f"Error writing file: {e}", err=True)
-        raise click.Abort()
+        # Show diff
+        if diff_lines == ["NEW FILE"]:
+            click.echo(f"Creating new file: {output_path}")
+        else:
+            click.echo("Changes detected:")
+            for line in diff_lines:
+                click.echo(line.rstrip())
+
+        # Get approval (unless auto-approve)
+        if not auto_approve and not click.confirm("\nApply these changes?"):
+            click.echo("Aborted - changes not applied")
+            return
+
+        # Write file
+        try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            click.echo(f"Error: Permission denied creating directory {output_path.parent}", err=True)
+            raise click.Abort()
+        except Exception as e:
+            click.echo(f"Error creating directory: {e}", err=True)
+            raise click.Abort()
+
+        try:
+            output_path.write_text(new_content, encoding="utf-8")
+            click.echo(f"✓ File written: {output_path}")
+        except PermissionError:
+            click.echo(f"Error: Permission denied writing to {output_path}", err=True)
+            raise click.Abort()
+        except Exception as e:
+            click.echo(f"Error writing file: {e}", err=True)
+            raise click.Abort()
+
+        # If auto-approve, don't offer iteration (one-shot mode)
+        if auto_approve:
+            break
+
+        # Ask if user wants to regenerate
+        if not click.confirm("\nRegenerate with updated sources?"):
+            break
+
+    # Show completion message with iteration count
+    iteration_word = "iteration" if iteration == 1 else "iterations"
+    click.echo(f"\nCompleted {iteration} {iteration_word}")
 
 
 if __name__ == "__main__":

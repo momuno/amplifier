@@ -488,7 +488,7 @@ def test_new_file_workflow_end_to_end(mock_gen_class, runner, sample_template, t
     template_data["output_path"] = str(output_path)
     sample_template.write_text(json.dumps(template_data))
 
-    result = runner.invoke(cli, ["regen-doc", str(sample_template)], input="y\n")
+    result = runner.invoke(cli, ["regen-doc", str(sample_template)], input="y\nn\n")
 
     assert result.exit_code == 0
     assert output_path.exists()
@@ -510,7 +510,7 @@ def test_update_file_workflow_end_to_end(mock_gen_class, runner, sample_template
     template_data["output_path"] = str(sample_output)
     sample_template.write_text(json.dumps(template_data))
 
-    result = runner.invoke(cli, ["regen-doc", str(sample_template)], input="y\n")
+    result = runner.invoke(cli, ["regen-doc", str(sample_template)], input="y\nn\n")
 
     assert result.exit_code == 0
     assert "Updated Document" in sample_output.read_text()

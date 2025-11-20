@@ -57,8 +57,8 @@ class TestFullWorkflowNewFile:
             mock_instance.generate.return_value = "# Test Document\n\n## Test Section\n\nGenerated content.\n"
             mock_gen.return_value = mock_instance
 
-            # Act - Simulate user approving with 'y'
-            result = runner.invoke(cli, ["regen-doc", str(template_path)], input="y\n")
+            # Act - Simulate user approving with 'y' and declining regeneration with 'n'
+            result = runner.invoke(cli, ["regen-doc", str(template_path)], input="y\nn\n")
 
         # Assert
         assert result.exit_code == 0
@@ -151,8 +151,8 @@ class TestFullWorkflowExistingFile:
             mock_instance.generate.return_value = "# New Content\n\n## Test Section\n\nThis is new.\n"
             mock_gen.return_value = mock_instance
 
-            # Act - Approve changes
-            result = runner.invoke(cli, ["regen-doc", str(template_path)], input="y\n")
+            # Act - Approve changes and decline regeneration
+            result = runner.invoke(cli, ["regen-doc", str(template_path)], input="y\nn\n")
 
         # Assert
         assert result.exit_code == 0
