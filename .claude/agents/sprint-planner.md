@@ -274,12 +274,59 @@ Feature A ──requires──> Feature B ──requires──> Feature C
 
 ---
 
+## 🚨 MANDATORY OUTPUT STRUCTURE
+
+**CRITICAL**: All sprint outputs MUST be created in a versioned directory structure. This is NOT optional.
+
+### Required Directory Structure
+
+```
+ai_working/[project-name]/sprints/vX.Y.Z-feature-name/
+├── SPRINT_PLAN.md              # Overview
+├── SPRINT_01_NAME.md           # Sprint 1 details
+├── SPRINT_02_NAME.md           # Sprint 2 details
+├── SPRINT_03_NAME.md           # Sprint 3 details
+└── SPRINT_04_NAME.md           # Sprint 4 details (if needed)
+```
+
+**Example from real project (doc_evergreen)**:
+```
+ai_working/doc_evergreen/sprints/v0.1.0-template-system/
+├── SPRINT_PLAN.md
+├── SPRINT_01_PROOF_OF_CONCEPT.md
+├── SPRINT_02_REVIEW_WORKFLOW.md
+├── SPRINT_03_CLI_TEMPLATES.md
+└── SPRINT_04_CONTEXT_CONTROL.md
+```
+
+**Version Naming**:
+- `vX.Y.Z-feature-name` format
+- Major version (v2.0.0): Breaking changes
+- Minor version (v0.2.0): New features, backward compatible
+- Patch version (v0.2.1): Bug fixes only
+
+**VALIDATION BEFORE DECLARING COMPLETION**:
+
+Before you say "sprint planning complete", verify:
+
+✅ Directory `ai_working/[project]/sprints/vX.Y.Z-feature-name/` exists
+✅ File `SPRINT_PLAN.md` is INSIDE the versioned directory
+✅ All `SPRINT_##_NAME.md` files are INSIDE the versioned directory
+✅ NO files are created directly in `ai_working/[project]/sprints/`
+✅ Version number follows SemVer format
+
+**If any file is in the wrong location, DELETE it and recreate in the correct directory.**
+
+---
+
 ## 📋 OUTPUT FORMAT
 
 ### Overall Sprint Plan Summary
 
+**Location**: `ai_working/[project]/sprints/vX.Y.Z-feature-name/SPRINT_PLAN.md`
+
 ```markdown
-# Sprint Plan: [Project Name]
+# Sprint Plan: [Project Name] vX.Y.Z
 
 ## MVP Scope
 [Brief summary of MVP]
@@ -303,6 +350,8 @@ Feature A ──requires──> Feature B ──requires──> Feature C
 ```
 
 ### Individual Sprint Documents
+
+**Location**: `ai_working/[project]/sprints/vX.Y.Z-feature-name/SPRINT_##_NAME.md`
 
 For each sprint, create detailed document following this structure:
 
@@ -687,14 +736,14 @@ After sprint planning, prepare for implementation:
 
 ### For Each Sprint:
 
-**Create working directory structure:**
+**Directory structure (already created):**
 ```
-sprints/
-├── README.md (overview)
-├── SPRINT_01_[NAME].md
-├── SPRINT_02_[NAME].md
-├── SPRINT_03_[NAME].md
-└── SPRINT_04_[NAME].md
+ai_working/[project]/sprints/vX.Y.Z-feature-name/
+├── SPRINT_PLAN.md              # Overview
+├── SPRINT_01_[NAME].md         # Sprint 1
+├── SPRINT_02_[NAME].md         # Sprint 2
+├── SPRINT_03_[NAME].md         # Sprint 3
+└── SPRINT_04_[NAME].md         # Sprint 4
 ```
 
 **Suggest next steps:**

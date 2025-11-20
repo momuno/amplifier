@@ -33,9 +33,21 @@ Break down your feature scope into value-first, executable sprints with version 
 8. Defines TDD implementation order
 9. Creates detailed sprint documents
 
-**Outputs:**
-- `ai_working/[project-name]/sprints/vX.Y.Z-feature-name/SPRINT_PLAN.md` (overview with version)
-- `ai_working/[project-name]/sprints/vX.Y.Z-feature-name/SPRINT_N.md` (detailed plans)
+**🚨 MANDATORY Directory Structure:**
+```
+ai_working/[project-name]/sprints/vX.Y.Z-feature-name/
+├── SPRINT_PLAN.md              # Overview
+├── SPRINT_01_NAME.md           # Sprint 1 details
+├── SPRINT_02_NAME.md           # Sprint 2 details
+├── SPRINT_03_NAME.md           # Sprint 3 details
+└── SPRINT_04_NAME.md           # Sprint 4 details (if needed)
+```
+
+**Real Example (see existing sprints)**:
+- `ai_working/doc_evergreen/sprints/v0.1.0-template-system/`
+- `ai_working/doc_evergreen/sprints/v0.2.0-chunked-generation/`
+
+**All files MUST be inside the versioned directory - NOT directly in sprints/**
 
 **Each sprint includes:**
 - Duration estimate
@@ -69,6 +81,10 @@ Break down your feature scope into value-first, executable sprints with version 
 
 **Ready? Let's turn your feature scope into executable sprints with version number.**
 
-I'll now launch the sprint-planner agent to analyze your convergence and create sprint breakdown.
+**What happens next:**
 
-**First, I'll locate your latest convergence session...**
+1. I will locate your latest `FEATURE_SCOPE.md` from convergence
+2. I will launch the `sprint-planner` agent to analyze your scope
+3. The agent will create detailed sprint plans with version number
+
+**Launching sprint-planner agent now...**

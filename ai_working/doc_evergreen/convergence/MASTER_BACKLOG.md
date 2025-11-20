@@ -4,7 +4,7 @@
 
 **Philosophy**: Nothing is lost. Ideas wait here until the right "reconsider when" conditions are met.
 
-**Last Updated**: 2025-11-18
+**Last Updated**: 2025-11-19
 
 ---
 
@@ -15,7 +15,8 @@
 | **Implemented** | 8 features | Sprints 1-4 (Problem A), Sprints 5-7 (Problem B MVP) |
 | **Problem A Deferred** | 23 features | From template-system convergence |
 | **Problem B Deferred** | 13 features | From chunked-generation convergence |
-| **Total Backlog** | 36 features | Available for future releases |
+| **Test Case Deferred** | 21 features | From test-case-basic-regen convergence |
+| **Total Backlog** | 57 features | Available for future releases |
 
 ---
 
@@ -35,6 +36,13 @@
 - [x] Section review checkpoints
 - [x] Source validation (ISSUE-001 fix)
 - [x] Source visibility (ISSUE-003 fix)
+
+### Test Case (v0.3.0 - Basic Regeneration - TBD)
+- [ ] Template-based generation (`.md.template` files)
+- [ ] Source context gathering (auto-read from `{{INCLUDE:}}`)
+- [ ] Manual regeneration command (`amplifier regen-doc`)
+- [ ] Structure preservation (static sections untouched)
+- [ ] Change detection (diff + user confirmation)
 
 ---
 
@@ -165,11 +173,240 @@
 
 ---
 
+### Test Case - Phase 2: Automation & Triggers (After Manual Flow Works)
+
+**Reconsider When**: Basic regeneration flow (manual trigger) proves valuable and is used for 10+ regenerations
+
+**Origin**: Test Case convergence (2025-11-19-test-case-basic-regen)
+
+#### 37. Automatic Change Detection
+**What**: Detect when source files have changed and determine if documentation needs updating
+**Why Valuable**: Eliminates "should I regenerate?" decision overhead. Proactive maintenance.
+**Complexity**: Medium (file watching, git integration, heuristics)
+**Reconsider When**:
+- Manual regeneration used 10+ times successfully
+- Users repeatedly ask "how do I know when to regenerate?"
+- Checking "should I regenerate?" becomes tedious
+
+#### 38. Git Hook Integration
+**What**: Automatically trigger regeneration on git events (pre-commit, post-merge, etc.)
+**Why Valuable**: Docs stay in sync with code changes without manual intervention
+**Complexity**: Medium (git hooks, performance, user control)
+**Reconsider When**:
+- Manual regeneration becomes routine part of git workflow
+- Users report "I forgot to regenerate before committing" 3+ times
+- Git integration patterns emerge from actual usage
+
+#### 39. Watch Mode
+**What**: Continuously monitor source files, regenerate on changes
+**Why Valuable**: Real-time doc updates during development
+**Complexity**: Medium (file watching, debouncing, resource usage)
+**Reconsider When**:
+- Users manually regenerate multiple times during single dev session
+- "I want docs to update as I code" explicitly requested
+- Clear use cases for continuous regeneration emerge
+
+#### 40. Scheduled Regeneration
+**What**: Cron-like scheduled regeneration (daily, weekly, on release, etc.)
+**Why Valuable**: Ensures docs stay fresh even if manual trigger forgotten
+**Complexity**: Low (cron integration, scheduling config)
+**Reconsider When**:
+- Docs fall stale between releases despite manual trigger availability
+- Users request "regenerate all docs weekly" explicitly
+- CI/CD integration emerges as clear use case
+
+---
+
+### Test Case - Phase 3: Multi-Document Operations (After Single-Doc Works)
+
+**Reconsider When**: Single-document regeneration proves solid, users maintain 5+ docs
+
+**Origin**: Test Case convergence (2025-11-19-test-case-basic-regen)
+
+#### 41. Batch Regeneration
+**What**: Regenerate multiple documents in one command: `amplifier regen-doc amplifier/*.md`
+**Why Valuable**: Efficient when multiple docs reference same sources
+**Complexity**: Medium (batch processing, error handling, progress UI)
+**Reconsider When**:
+- Users manage 5+ template-based docs
+- Manually regenerating docs one-by-one becomes tedious
+- Clear patterns emerge for "regenerate all project docs"
+
+#### 42. Multi-Document Orchestration
+**What**: Coordinate regeneration across related documents (e.g., README references API docs)
+**Why Valuable**: Maintains consistency across documentation suite
+**Complexity**: High (dependency tracking, ordering, consistency validation)
+**Reconsider When**:
+- Users maintain documentation suites with clear cross-references
+- Inconsistencies across docs become pain point
+- Dependency patterns are well understood
+
+#### 43. Workspace-Wide Regeneration
+**What**: One command to regenerate all docs in entire workspace: `amplifier regen-all`
+**Why Valuable**: Ultimate convenience for "update everything"
+**Complexity**: Medium (discovery, batch processing, configuration)
+**Reconsider When**:
+- Users manage 10+ docs across multiple projects
+- "Regenerate everything" is frequent operation
+- Clear conventions for template discovery emerge
+
+---
+
+### Test Case - Phase 4: Advanced Features (Long-Term)
+
+**Reconsider When**: Core functionality mature, advanced needs emerge
+
+**Origin**: Test Case convergence (2025-11-19-test-case-basic-regen)
+
+#### 44. Partial/Selective Updates
+**What**: Update only specific sections: `amplifier regen-doc README.md --section Features`
+**Why Valuable**: Faster regeneration, less review overhead
+**Complexity**: Medium (section targeting, context management)
+**Reconsider When**:
+- Full-doc regeneration takes >1 minute regularly
+- Users frequently discard most changes (only 1-2 sections meaningful)
+- Section-level granularity clearly valuable
+
+#### 45. Human Edit Preservation
+**What**: Detect human edits in generated docs, preserve across regenerations
+**Why Valuable**: Allows manual fixes without losing on next regeneration
+**Complexity**: High (diff analysis, merge logic, conflict resolution)
+**Reconsider When**:
+- Users frequently lose manual edits after regeneration
+- Clear patterns emerge for "preserve this section"
+- Template-based fixes prove insufficient for edge cases
+
+#### 46. Configuration Files
+**What**: Project-wide config for regeneration defaults, LLM settings, source paths
+**Why Valuable**: Reduces command-line verbosity, shares settings across team
+**Complexity**: Low (config file parsing, precedence rules)
+**Reconsider When**:
+- Users pass same flags repeatedly (>5 times)
+- Team members need shared settings
+- Clear configuration needs emerge from usage
+
+#### 47. Review/Approval Workflows
+**What**: Multi-stage approval (generate → review → approve → commit) with audit trail
+**Why Valuable**: Quality gates, team coordination, accountability
+**Complexity**: High (workflow state, multi-user, notifications)
+**Reconsider When**:
+- Multiple team members regenerate same docs
+- Quality control becomes necessary (approval before merge)
+- Audit requirements emerge
+
+#### 48. Smart Structure Discovery
+**What**: LLM analyzes existing docs, proposes template structure automatically
+**Why Valuable**: Reduces manual template creation effort
+**Complexity**: High (structure analysis, LLM prompting, validation)
+**Reconsider When**:
+- Users have created 10+ templates manually
+- Clear patterns in successful templates emerge
+- Template creation is major friction point
+
+#### 49. LLM-Generated Templates
+**What**: Ask LLM to create template from scratch: `amplifier create-template README --type project-readme`
+**Why Valuable**: Ultimate convenience for template creation
+**Complexity**: Medium (template generation, validation)
+**Reconsider When**:
+- Manual template creation is well-understood
+- Template patterns are codified
+- Users explicitly request "generate template for me"
+
+#### 50. Interactive Template Creation Wizard
+**What**: CLI wizard to create templates through Q&A: "What type of doc? What sections? What sources?"
+**Why Valuable**: Guided template creation with less friction
+**Complexity**: Medium (wizard UI, template generation)
+**Reconsider When**:
+- Manual template creation has clear friction points
+- Template patterns are codified enough to guide
+- Users explicitly request "help me create template"
+
+---
+
+### Test Case - Optimizations (Performance/UX)
+
+**Reconsider When**: Core functionality works well, performance/UX becomes bottleneck
+
+**Origin**: Test Case convergence (2025-11-19-test-case-basic-regen)
+
+#### 51. Prompt Versioning System
+**What**: Version and evolve LLM prompts, track which work best
+**Why Valuable**: Improves generation quality over time
+**Complexity**: Medium (versioning, analytics, A/B testing)
+**Reconsider When**:
+- Users frequently tweak prompts for better results
+- Clear improvements to prompts emerge
+- Quality varies significantly across regenerations
+
+#### 52. Relevancy Scoring
+**What**: Score each source file 1-10 for relevance to doc, include only high-scoring sources
+**Why Valuable**: Reduces context size, improves focus, lowers cost
+**Complexity**: Medium (scoring heuristics, thresholds)
+**Reconsider When**:
+- Templates regularly include irrelevant sources (>30% unused)
+- Context size becomes problem (hitting LLM limits)
+- Cost optimization becomes priority
+
+#### 53. Caching/Efficiency Optimizations
+**What**: Cache unchanged source content, skip sections that haven't changed, reuse context
+**Why Valuable**: Faster regeneration, lower cost
+**Complexity**: Medium (cache invalidation, change detection)
+**Reconsider When**:
+- Regeneration time >30 seconds regularly
+- Cost becomes significant (>$1 per regeneration)
+- Clear caching opportunities identified
+
+#### 54. Incremental Context Updates
+**What**: Track which sources changed since last regeneration, only update relevant context
+**Why Valuable**: Efficiency for large source bases
+**Complexity**: Medium (change tracking, context diff)
+**Reconsider When**:
+- Source bases are large (>50 files)
+- Full context gathering takes >10 seconds
+- Incremental updates clearly faster
+
+#### 55. Progressive/Streaming Output
+**What**: Show generated content as it streams from LLM, not just at completion
+**Why Valuable**: Better UX for slow generations, see progress
+**Complexity**: Medium (streaming, terminal UI)
+**Reconsider When**:
+- Regeneration regularly takes >30 seconds
+- Users report feeling "is this working?" during generation
+- Streaming UX clearly valuable
+
+---
+
+### Test Case - Parking Lot (Unclear Fit)
+
+**Reconsider When**: Specific use cases emerge through real usage
+
+**Origin**: Test Case convergence (2025-11-19-test-case-basic-regen)
+
+#### 56. Template Marketplace
+**What**: Share/discover templates created by others
+**Why Uncertain**: Unclear if templates are reusable across projects, what marketplace would look like
+**Next Step**: Understand template reusability through usage first
+**Reconsider When**:
+- Users create 5+ templates and want to share
+- Clear demand for "standard templates" emerges
+- Reusability patterns are understood
+
+#### 57. Plugin/Extension System
+**What**: Allow custom source readers, LLM providers, output formatters
+**Why Uncertain**: Unclear what needs extending. May be premature abstraction
+**Next Step**: Identify what users want to customize beyond core capabilities
+**Reconsider When**:
+- Users request custom functionality 3+ times
+- Clear extension points emerge
+- Core system proves insufficient for edge cases
+
+---
+
 ### Problem A - Version 2 (High Priority)
 
 **Reconsider When**: Template system (v0.1.0) is in active use
 
-#### 12. Automatic Change Detection
+#### 58. Automatic Change Detection (Problem A Version)
 **Origin**: Problem A convergence (2025-11-18-problem-a-template-system)
 **What**: Detect when source files changed, determine if docs need updating
 **Why Valuable**: Proactive doc maintenance
@@ -178,7 +415,7 @@
 - MVP used for 10+ docs
 - Manually checking "should I regenerate?" becomes tedious
 
-#### 13. Template Lifecycle Management
+#### 59. Template Lifecycle Management
 **Origin**: Problem A convergence (2025-11-18-problem-a-template-system)
 **What**: Create, evolve, and manage templates over time
 **Why Valuable**: Templates improve through use
@@ -187,7 +424,7 @@
 - User has created 3+ templates manually
 - Template editing becomes frequent
 
-#### 14. Intelligent Source Discovery
+#### 60. Intelligent Source Discovery
 **Origin**: Problem A convergence (2025-11-18-problem-a-template-system)
 **What**: Auto-identify relevant source files
 **Why Valuable**: Eliminates manual source specification
@@ -196,7 +433,7 @@
 - User has regenerated 10+ docs with manual sources
 - Manual source specification is primary pain point
 
-#### 15. Automated Quality Validation
+#### 61. Automated Quality Validation
 **Origin**: Problem A convergence (2025-11-18-problem-a-template-system)
 **What**: Check generated doc quality against criteria
 **Why Valuable**: Catches issues before user review
@@ -205,7 +442,7 @@
 - 5+ successful regenerations show common quality patterns
 - User checks same things repeatedly
 
-#### 16. Git Integration
+#### 62. Git Integration (Problem A Version)
 **Origin**: Problem A convergence (2025-11-18-problem-a-template-system)
 **What**: Version control integration for doc history
 **Why Valuable**: See evolution, rollback if needed
@@ -214,7 +451,7 @@
 - User has regenerated same doc 3+ times
 - Rollback becomes necessary
 
-#### 17. Template Variants & Specialization
+#### 63. Template Variants & Specialization
 **Origin**: Problem A convergence (2025-11-18-problem-a-template-system)
 **What**: Multiple templates for different doc types
 **Why Valuable**: Specialization improves quality
@@ -229,7 +466,7 @@
 
 **Reconsider When**: Version 2 features are implemented, need next capabilities
 
-#### 18-36. (23 total features from Problem A)
+#### 64-80. (23 total features from Problem A)
 See `convergence/2025-11-18-problem-a-template-system/DEFERRED_FEATURES.md` for complete list including:
 - Meta-templates & template generation
 - Cross-file relationship tracking
@@ -256,21 +493,28 @@ See `convergence/2025-11-18-problem-a-template-system/DEFERRED_FEATURES.md` for 
 ### By Phase
 - **v0.1.0 (Implemented)**: 5 features (Problem A)
 - **v0.2.0 (Implemented)**: 6 features (Problem B)
+- **v0.3.0 (Planned)**: 5 features (Test Case - Basic Regeneration)
 - **Phase 2 (Problem B)**: 3 features
 - **Phase 3 (Problem B)**: 3 features
 - **Optimizations (Problem B)**: 3 features
 - **Advanced (Problem B)**: 2 features
+- **Phase 2 (Test Case)**: 4 features (Automation & Triggers)
+- **Phase 3 (Test Case)**: 3 features (Multi-Document)
+- **Phase 4 (Test Case)**: 7 features (Advanced)
+- **Optimizations (Test Case)**: 5 features (Performance/UX)
+- **Parking Lot (Test Case)**: 2 features
 - **Version 2 (Problem A)**: 6 features
 - **Future (Problem A)**: 17 features
 
 ### By Complexity
-- **Low**: ~5 features
-- **Medium**: ~15 features
-- **High**: ~16 features
+- **Low**: ~8 features
+- **Medium**: ~30 features
+- **High**: ~19 features
 
 ### By Origin
 - **Problem A** (Template System): 23 deferred features
 - **Problem B** (Chunked Generation): 13 deferred features
+- **Test Case** (Basic Regeneration): 21 deferred features
 
 ---
 
@@ -283,20 +527,30 @@ Features move from backlog to active development when:
 3. **MVP learning is complete** (we understand the problem space)
 4. **Complexity is justified** (value > implementation cost)
 
-### Current Priority Queue (After v0.2.0)
+### Current Priority Queue
 
-**Next Up (Phase 2 - Problem B)**:
-1. Post-order validation (if consistency issues emerge)
-2. Sibling checks (if overlap/gaps are common)
-3. Tree backtracking (if single-pass quality insufficient)
+**Active Development (v0.3.0 - Test Case)**:
+1. Template-based generation
+2. Source context gathering
+3. Manual regeneration command
+4. Structure preservation
+5. Change detection
 
-**Watching (Problem A)**:
-- Automatic change detection
-- Template lifecycle management
-- Intelligent source discovery
+**Next Up After v0.3.0**:
+- **If manual flow proves valuable** (used 10+ times):
+  - Test Case Phase 2 (Automation & Triggers)
+- **If consistency issues emerge in v0.2.0**:
+  - Problem B Phase 2 (Post-order validation)
+- **If template system (v0.1.0) sees heavy use**:
+  - Problem A Version 2 features
+
+**Watching for Triggers**:
+- Test Case automation needs
+- Problem B consistency patterns
+- Problem A template management needs
 
 **Parking Lot**:
-- Everything else waits for trigger conditions
+- All other features wait for "reconsider when" conditions
 
 ---
 
@@ -326,6 +580,7 @@ Features move from backlog to active development when:
 
 - **Problem A Details**: `convergence/2025-11-18-problem-a-template-system/DEFERRED_FEATURES.md`
 - **Problem B Details**: `convergence/2025-11-18-chunked-generation/DEFERRED_FEATURES.md`
+- **Test Case Details**: `convergence/2025-11-19-test-case-basic-regen/DEFERRED_FEATURES.md`
 - **Issues Tracker**: `issues/ISSUES_TRACKER.md`
 - **Sprint Plans**: `sprints/` (once created)
 
@@ -336,8 +591,8 @@ Features move from backlog to active development when:
 This backlog embodies:
 
 **Ruthless Simplicity**:
-- Implemented 11 features out of 49 explored (22%)
-- 78% thoughtfully deferred with clear conditions
+- Implemented 11 features out of 70 explored (16%)
+- 84% thoughtfully deferred with clear conditions
 
 **Trust in Emergence**:
 - Features prove necessity through use
@@ -354,6 +609,6 @@ This backlog embodies:
 
 ---
 
-**Last Review**: 2025-11-18
-**Next Review**: After Sprints 5-7 complete (v0.2.0 release)
+**Last Review**: 2025-11-19
+**Next Review**: After v0.3.0 complete (Test Case - Basic Regeneration)
 **Review Trigger**: When any "Reconsider When" condition is met

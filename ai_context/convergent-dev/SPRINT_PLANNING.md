@@ -200,20 +200,78 @@ Sprint 1 TDD Order:
 
 ---
 
+## 🚨 MANDATORY OUTPUT STRUCTURE
+
+**CRITICAL**: All sprint outputs MUST be created in a versioned directory structure. This is NOT optional.
+
+### Required Directory Structure
+
+```
+ai_working/[project-name]/sprints/vX.Y.Z-feature-name/
+├── SPRINT_PLAN.md              # Overview
+├── SPRINT_01_NAME.md           # Sprint 1 details
+├── SPRINT_02_NAME.md           # Sprint 2 details
+├── SPRINT_03_NAME.md           # Sprint 3 details
+└── SPRINT_04_NAME.md           # Sprint 4 details (if needed)
+```
+
+**Real Example (doc_evergreen v0.1.0)**:
+```
+ai_working/doc_evergreen/sprints/v0.1.0-template-system/
+├── SPRINT_PLAN.md
+├── SPRINT_01_PROOF_OF_CONCEPT.md
+├── SPRINT_02_REVIEW_WORKFLOW.md
+├── SPRINT_03_CLI_TEMPLATES.md
+└── SPRINT_04_CONTEXT_CONTROL.md
+```
+
+**Real Example (doc_evergreen v0.2.0)**:
+```
+ai_working/doc_evergreen/sprints/v0.2.0-chunked-generation/
+├── SPRINT_PLAN.md
+├── SPRINT_01_CHUNKED_PROCESSING.md
+├── SPRINT_02_INTEGRATION.md
+└── SPRINT_03_VALIDATION.md
+```
+
+**Version Naming Convention**:
+- Format: `vX.Y.Z-feature-name`
+- Major (v2.0.0): Breaking changes
+- Minor (v0.2.0): New features, backward compatible
+- Patch (v0.2.1): Bug fixes only
+
+### Structure Validation
+
+**Before declaring sprint planning complete, verify**:
+
+✅ Directory exists: `ai_working/[project]/sprints/vX.Y.Z-feature-name/`
+✅ `SPRINT_PLAN.md` is INSIDE the versioned directory
+✅ All `SPRINT_##_NAME.md` files are INSIDE the versioned directory
+✅ NO sprint files exist directly in `ai_working/[project]/sprints/`
+✅ Version number follows SemVer format (vX.Y.Z)
+
+**If files are in wrong location**: DELETE and recreate in correct versioned directory.
+
+---
+
 ## Outputs Created
 
 ### 1. `SPRINT_PLAN.md` (Overview)
 
+**Location**: `ai_working/[project]/sprints/vX.Y.Z-feature-name/SPRINT_PLAN.md`
+
 **Contains**:
-- Overview of all sprints
+- Overview of all sprints with version number
 - Total timeline
 - Sprint breakdown summary
 - Philosophy alignment
-- What's deferred to v2
+- What's deferred to next version
 
 **Purpose**: High-level roadmap.
 
 ### 2. `SPRINT_0X_[NAME].md` (Detailed Plans)
+
+**Location**: `ai_working/[project]/sprints/vX.Y.Z-feature-name/SPRINT_##_NAME.md`
 
 **One file per sprint, contains**:
 - Sprint number and name
