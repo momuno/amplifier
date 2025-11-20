@@ -1,0 +1,42 @@
+{
+  "document": {
+    "title": "Advanced Documentation Example",
+    "output": "ADVANCED_EXAMPLE.md",
+    "sections": [
+      {
+        "heading": "Getting Started",
+        "prompt": "Provide an introduction to the project and guide users through initial setup. Explain what the project does and who it's for.",
+        "sources": ["README.md"],
+        "sections": [
+          {
+            "heading": "Installation",
+            "prompt": "Provide detailed installation instructions including system requirements, dependency installation commands, and verification steps. Include both quick start and detailed installation options.",
+            "sources": ["README.md", "pyproject.toml"]
+          },
+          {
+            "heading": "Configuration",
+            "prompt": "Explain how to configure the project for first-time use. Include configuration file locations, required settings, optional settings, and examples of common configurations.",
+            "sources": ["README.md", "doc_evergreen/config.py"]
+          }
+        ]
+      },
+      {
+        "heading": "Usage",
+        "prompt": "Provide comprehensive usage examples showing how to use the main features of the project.",
+        "sources": ["README.md", "doc_evergreen/README.md"],
+        "sections": [
+          {
+            "heading": "Basic Usage",
+            "prompt": "Show simple, common use cases with minimal code examples. Focus on the most frequently used features and provide copy-paste ready examples.",
+            "sources": ["README.md", "doc_evergreen/cli.py"]
+          },
+          {
+            "heading": "Advanced Usage",
+            "prompt": "Demonstrate advanced features and customization options. Include examples of combining features, handling edge cases, and optimizing performance.",
+            "sources": ["doc_evergreen/chunked_generator.py", "doc_evergreen/core/template_schema.py"]
+          }
+        ]
+      }
+    ]
+  }
+}

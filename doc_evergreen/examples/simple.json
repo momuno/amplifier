@@ -1,0 +1,18 @@
+{
+  "document": {
+    "title": "Simple Project Documentation",
+    "output": "SIMPLE_EXAMPLE.md",
+    "sections": [
+      {
+        "heading": "Overview",
+        "prompt": "Explain what this project does, its purpose, and main features. Keep it concise and focused on the core value proposition. Include information about who would benefit from using this project.",
+        "sources": ["README.md", "doc_evergreen/README.md"]
+      },
+      {
+        "heading": "Installation",
+        "prompt": "Provide clear installation instructions with examples. Include commands for installing dependencies and any system requirements. Make it easy for a new user to get started quickly.",
+        "sources": ["README.md", "pyproject.toml"]
+      }
+    ]
+  }
+}
