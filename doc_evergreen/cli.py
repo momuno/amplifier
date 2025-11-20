@@ -27,7 +27,18 @@ except ImportError:
 
 @click.group()
 def cli():
-    """doc_evergreen CLI - Template-based documentation generation."""
+    """doc_evergreen - AI-powered documentation generation from templates.
+
+    Generate and maintain documentation by defining templates with sections,
+    prompts, and source files. The system regenerates docs as your code evolves.
+
+    Quick Start:
+      1. Create a template (see examples/ directory)
+      2. Run: regen-doc your-template.json
+      3. Review changes and approve
+
+    Documentation: See TEMPLATES.md for template creation guide
+    """
     pass
 
 
@@ -103,14 +114,40 @@ def doc_update(template_path: str, mode: str, output: str | None):
 
 @cli.command("regen-doc")
 @click.argument("template_path", type=click.Path(exists=True))
-@click.option("--auto-approve", is_flag=True, help="Apply changes without approval")
-@click.option("--output", type=click.Path(), help="Override template output path")
+@click.option("--auto-approve", is_flag=True, help="Apply changes without approval prompt")
+@click.option("--output", type=click.Path(), help="Override output path from template")
 def regen_doc(template_path: str, auto_approve: bool, output: str | None):
     """Regenerate documentation from template with change preview.
 
+    This command regenerates documentation based on a template and shows you
+    exactly what changed before applying updates. Perfect for keeping docs
+    in sync as your code evolves.
+
+    \b
+    Workflow:
+      1. Reads template and generates new documentation
+      2. Compares with existing file (if present)
+      3. Shows unified diff of changes
+      4. Prompts for approval (unless --auto-approve)
+      5. Writes updated documentation
+
+    \b
     Examples:
-      regen-doc template.json          # Preview changes, ask approval
-      regen-doc --auto-approve t.json  # Apply automatically
+      # Standard workflow with review
+      regen-doc templates/readme.json
+
+      # Auto-approve for CI/CD pipelines
+      regen-doc --auto-approve templates/readme.json
+
+      # Override output location
+      regen-doc --output custom/path.md templates/readme.json
+
+    \b
+    Template Format:
+      Supports both Sprint 5 format (with 'document' key) and
+      Sprint 8 format (with 'template_version', 'output_path', 'chunks')
+
+    See examples/ directory and TEMPLATES.md for template creation guide.
     """
     # 1. Parse template JSON
     try:
@@ -122,64 +159,59 @@ def regen_doc(template_path: str, auto_approve: bool, output: str | None):
         click.echo(f"Error reading template: {e}", err=True)
         raise click.Abort()
 
-    # 2. Validate required fields
-    if "template_version" not in template_data:
-        click.echo("Error: Invalid template - missing 'template_version'", err=True)
-        raise click.Abort()
-
-    if "output_path" not in template_data:
-        click.echo("Error: Invalid template - missing 'output_path'", err=True)
-        raise click.Abort()
-
-    if "chunks" not in template_data:
-        click.echo("Error: Invalid template - missing 'chunks'", err=True)
-        raise click.Abort()
-
-    # 3. Convert Sprint 8 format to Sprint 5 Template format
+    # 2. Determine template format and parse accordingly
     try:
-        # Convert chunks to sections
-        sections = []
-        for chunk in template_data.get("chunks", []):
-            sections.append(
-                {
-                    "heading": chunk.get("chunk_id", "Section"),
-                    "prompt": chunk.get("prompt", ""),
-                    "sources": chunk.get("dependencies", []),
-                }
+        # Check if it's Sprint 5 format (has "document" key)
+        if "document" in template_data:
+            # Sprint 5 format - use parse_template directly
+            template_obj = parse_template(Path(template_path))
+            output_path_from_template = template_obj.document.output
+        # Check if it's Sprint 8 format (has "template_version", "output_path", "chunks")
+        elif "template_version" in template_data and "output_path" in template_data and "chunks" in template_data:
+            # Sprint 8 format - convert to Sprint 5 format
+            sections = []
+            for chunk in template_data.get("chunks", []):
+                sections.append(
+                    {
+                        "heading": chunk.get("chunk_id", "Section"),
+                        "prompt": chunk.get("prompt", ""),
+                        "sources": chunk.get("dependencies", []),
+                    }
+                )
+
+            # Parse into Template object
+            parsed_sections = [
+                Section(
+                    heading=s["heading"],
+                    prompt=s.get("prompt"),
+                    sources=s.get("sources", []),
+                )
+                for s in sections
+            ]
+
+            document = Document(
+                title=template_data.get("metadata", {}).get("title", "Generated Document"),
+                output=template_data["output_path"],
+                sections=parsed_sections,
             )
 
-        # Create Sprint 5-compatible template structure
-        sprint5_template_data = {
-            "document": {
-                "title": template_data.get("metadata", {}).get("title", "Generated Document"),
-                "output": template_data["output_path"],
-                "sections": sections,
-            }
-        }
-
-        # Parse into Template object
-        parsed_sections = [
-            Section(
-                heading=s["heading"],
-                prompt=s.get("prompt"),
-                sources=s.get("sources", []),
+            template_obj = Template(document=document)
+            output_path_from_template = template_data["output_path"]
+        else:
+            click.echo(
+                "Error: Invalid template format. Expected either Sprint 5 format (with 'document') or Sprint 8 format (with 'template_version', 'output_path', 'chunks')",
+                err=True,
             )
-            for s in sections
-        ]
+            raise click.Abort()
 
-        document = Document(
-            title=sprint5_template_data["document"]["title"],
-            output=sprint5_template_data["document"]["output"],
-            sections=parsed_sections,
-        )
-
-        template_obj = Template(document=document)
-
+    except ValueError as e:
+        click.echo(f"Error: Failed to parse template: {e}", err=True)
+        raise click.Abort()
     except Exception as e:
         click.echo(f"Error: Failed to parse template: {e}", err=True)
         raise click.Abort()
 
-    # 4. Generate new content using ChunkedGenerator
+    # 3. Generate new content using ChunkedGenerator
     try:
         generator = ChunkedGenerator(template_obj, Path(template_path).parent)
         # Handle both coroutine (real generator) and string (mocked generator)
@@ -201,7 +233,7 @@ def regen_doc(template_path: str, auto_approve: bool, output: str | None):
             raise click.Abort()
 
     # 4. Determine output path
-    output_path = Path(output) if output else Path(template_data["output_path"])
+    output_path = Path(output) if output else Path(output_path_from_template)
 
     # 5. Detect changes
     has_changes, diff_lines = detect_changes(output_path, new_content)
@@ -227,6 +259,14 @@ def regen_doc(template_path: str, auto_approve: bool, output: str | None):
     # 9. Write file
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        click.echo(f"Error: Permission denied creating directory {output_path.parent}", err=True)
+        raise click.Abort()
+    except Exception as e:
+        click.echo(f"Error creating directory: {e}", err=True)
+        raise click.Abort()
+
+    try:
         output_path.write_text(new_content, encoding="utf-8")
         click.echo(f"✓ File written: {output_path}")
     except PermissionError:
