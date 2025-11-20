@@ -1,156 +1,149 @@
-# Issues Tracker: doc_evergreen
+# Issues Tracker - doc_evergreen
 
-**Last Updated:** 2025-11-18
+## Open Issues
 
-## Summary
+### ISSUE-002: Misleading Success Message When Generated Content Contains Errors
+- **Status**: Open (Deferred)
+- **Priority**: Medium
+- **Type**: Enhancement
+- **Component**: CLI (`doc_evergreen/cli.py`)
+- **Assigned to**: Deferred (v0.2.0)
+- **Created**: 2025-11-18
+- **Deferred**: Handled by section review workflow in v0.2.0
 
-| Status | Count |
-|--------|-------|
-| Open | 3 |
-| In Progress | 0 |
-| Resolved | 0 |
-| **Total** | **3** |
+Displays "✅ Accepted: README.md updated" even when generated content contains LLM error messages instead of actual documentation, creating false confidence. Deferred because section-by-section review in chunked mode provides alternative solution.
 
-## Issues by Priority
+[Full details →](./ISSUE-002-misleading-success-message.md)
 
-### High
-- [ISSUE-001](./ISSUE-001-empty-context-handling.md) - Tool proceeds with empty context instead of failing early
+---
 
-### Medium
-- [ISSUE-002](./ISSUE-002-misleading-success-message.md) - Misleading success message when generated content contains errors
-- [ISSUE-003](./ISSUE-003-no-source-validation-feedback.md) - No user feedback when source globs match zero files
+### ISSUE-004: CLI help text unclear about output file location
+- **Status**: Open
+- **Priority**: Medium
+- **Type**: Enhancement (UX)
+- **Component**: CLI (`doc_evergreen/cli.py`)
+- **Assigned to**: TBD
+- **Created**: 2025-11-19
+- **Sprint**: TBD
 
-## Issues by Type
+First-time users don't understand where output files will be created when running `doc-update`. The `--output` help text says "Override output path from template" but doesn't explain that templates contain an `output` field or where the default location is.
 
-### Bugs (1)
-- [ISSUE-001](./ISSUE-001-empty-context-handling.md) - Tool proceeds with empty context instead of failing early
+[Full details →](./ISSUE-004-cli-help-text-unclear.md)
 
-### Enhancements (2)
-- [ISSUE-002](./ISSUE-002-misleading-success-message.md) - Misleading success message when generated content contains errors
-- [ISSUE-003](./ISSUE-003-no-source-validation-feedback.md) - No user feedback when source globs match zero files
+---
 
-## Issues by Status
+### ISSUE-005: No example templates or documentation about template creation
+- **Status**: Open
+- **Priority**: High
+- **Type**: Enhancement (Documentation)
+- **Component**: Documentation, Examples
+- **Assigned to**: TBD
+- **Created**: 2025-11-19
+- **Sprint**: TBD (High Priority - Onboarding)
 
-### Open (3)
-- [ISSUE-001](./ISSUE-001-empty-context-handling.md) - High - Tool proceeds with empty context instead of failing early
-- [ISSUE-002](./ISSUE-002-misleading-success-message.md) - Medium - Misleading success message when generated content contains errors
-- [ISSUE-003](./ISSUE-003-no-source-validation-feedback.md) - Medium - No user feedback when source globs match zero files
+Users attempting to use doc_evergreen don't know where to find example templates or how to create their own. No example templates exist in the repository and no documentation explains template structure or creation process.
 
-### In Progress (0)
-No issues currently in progress.
+[Full details →](./ISSUE-005-no-example-templates.md)
 
-### Resolved (0)
-No issues resolved yet.
+---
 
-## Issue Relationships
+### ISSUE-006: Unclear whether sources belong in template vs CLI argument
+- **Status**: Open
+- **Priority**: High
+- **Type**: Bug / Documentation
+- **Component**: CLI, Template System, Documentation
+- **Assigned to**: TBD
+- **Created**: 2025-11-19
+- **Sprint**: TBD (High Priority - Usability)
 
-### Dependency Chain
-```
-ISSUE-001 (empty context handling)
-    ↓ reduces frequency of
-ISSUE-002 (misleading success)
-    ↓ prevented by
-ISSUE-003 (source feedback)
-```
+Users are confused about how to specify source files - template has `sources` field per section, CLI has `--sources` flag. Not documented which to use, precedence rules, or what happens when sources are missing.
 
-### Related Issues
-- ISSUE-001, ISSUE-002, ISSUE-003 all stem from the same user experience: running tool with source patterns that match zero files
+[Full details →](./ISSUE-006-sources-template-vs-cli.md)
 
-## Sprint Planning Recommendations
+---
 
-### Must Fix for Next Release (Sprint 5)
-- [ ] **ISSUE-001** (High): Blocks effective tool usage - users can't understand why generation fails
-  - **Rationale**: Creates confusing error messages in generated files, low implementation complexity (1 hour)
-  - **Dependencies**: None
-  - **Risk**: Low - Adding validation doesn't change existing behavior
+### ISSUE-007: No progress or activity feedback during generation
+- **Status**: Open
+- **Priority**: High
+- **Type**: Enhancement (UX)
+- **Component**: CLI (`doc_evergreen/cli.py`)
+- **Assigned to**: TBD
+- **Created**: 2025-11-19
+- **Sprint**: TBD (High Priority - UX)
 
-### Should Fix in Sprint 5
-- [ ] **ISSUE-003** (Medium): Enhances debuggability and user experience
-  - **Rationale**: Natural companion to ISSUE-001, helps users understand source resolution (1 hour)
-  - **Dependencies**: Works well with ISSUE-001 fix
-  - **Risk**: Low - Adding informational output
+CLI provides no output during generation. Users see blank terminal and don't know if tool is working, hung, or crashed. Especially problematic for long-running multi-section generations.
 
-- [ ] **ISSUE-002** (Medium): Improves user trust and transparency
-  - **Rationale**: Prevents false confidence in generated content (2 hours)
-  - **Dependencies**: Reduced frequency once ISSUE-001 is fixed
-  - **Risk**: Low - Pattern matching and warnings
+[Full details →](./ISSUE-007-no-progress-feedback.md)
 
-### Total Estimated Effort: 4 hours
+---
 
-## Technical Debt Identified
+### ISSUE-008: Unclear what "chunked" vs "single-shot" modes do
+- **Status**: Open
+- **Priority**: Medium
+- **Type**: Enhancement (Documentation)
+- **Component**: CLI, Documentation
+- **Assigned to**: TBD
+- **Created**: 2025-11-19
+- **Sprint**: TBD (Documentation - After ISSUE-009)
 
-### Pattern: Silent Failures
-All three issues share a common pattern of silent failures or insufficient feedback:
-1. Source resolution happens without user visibility
-2. Validation uses logging instead of user-facing messages
-3. Success messages don't reflect actual content quality
+CLI offers two modes but doesn't explain what each does, when to use them, or how they differ. Users must guess or experiment to understand functionality.
 
-### Underlying Causes
-- Over-reliance on logging for user feedback
-- No validation between resolution and generation steps
-- Assumption that users will manually verify results
+[Full details →](./ISSUE-008-modes-unclear.md)
 
-### Recommended Improvements
-1. **Fail early principle**: Validate inputs before expensive operations (LLM calls)
-2. **Progressive disclosure**: Show what's happening at each step
-3. **Content validation**: Check generated content quality before claiming success
-4. **User-facing feedback**: Use click.echo for important messages, not just logging
+---
 
-## Testing Gaps Revealed
+### ISSUE-009: Single-shot mode not implemented - both modes use chunked generator
+- **Status**: Open
+- **Priority**: High
+- **Type**: Bug (Missing Feature)
+- **Component**: Generation (`single_generator.py` missing)
+- **Assigned to**: TBD
+- **Created**: 2025-11-19
+- **Sprint**: TBD (Feature Implementation)
 
-### Missing Test Coverage
-1. **Edge case testing**: No tests for empty source lists
-2. **Integration testing**: No tests for full CLI workflow with invalid inputs
-3. **Error message testing**: No validation of user-facing error messages
-4. **Content quality testing**: No checks that generated content is valid
+CLI advertises two generation modes but single-shot mode isn't implemented. Both modes fall back to `ChunkedGenerator`, making `--mode` option misleading and non-functional.
 
-### Recommended Test Additions
-1. Test CLI with non-existent source patterns
-2. Test CLI with patterns matching zero files
-3. Test that appropriate errors/warnings are displayed
-4. Test exit codes for error conditions
-5. Test that bad content is detected and flagged
+[Full details →](./ISSUE-009-single-shot-not-implemented.md)
 
-## Risk Assessment
+---
 
-**High Risk Areas:**
-- Source resolution: 3 issues, 1 high priority
-- User feedback: All 3 issues involve unclear or missing feedback
-- Content validation: No validation of LLM output quality
+## In Progress
 
-**Low Risk Areas:**
-- Template system: Working as designed
-- File operations: Reliable and tested
-- LLM integration: Works correctly when given valid inputs
+(No issues currently in progress)
 
-## Next Steps
+---
 
-### For Sprint Planning
-1. Review and prioritize these 3 issues for Sprint 5
-2. Assign ISSUE-001 (high priority) to Sprint 5 immediately
-3. Consider bundling all 3 issues together (total 4 hours, natural dependencies)
-4. Update CLI tests to cover these edge cases
+## Resolved
 
-### For Development
-1. Implement ISSUE-001 fix first (blocks most painful user experience)
-2. Add ISSUE-003 feedback (enhances ISSUE-001 fix)
-3. Implement ISSUE-002 validation (prevents future confusion)
-4. Add comprehensive test coverage for empty/invalid sources
+### ISSUE-001: Tool Proceeds with Empty Context Instead of Failing Early
+- **Status**: Resolved
+- **Priority**: High
+- **Type**: Bug
+- **Component**: CLI / Source Validation
+- **Resolved in**: Sprint 5 (v0.2.0)
+- **Created**: 2025-11-18
+- **Resolved**: 2025-11-19
 
-### For Documentation
-1. Document expected behavior when sources are empty
-2. Explain source resolution process in user guide
-3. Add troubleshooting section for common pattern mistakes
-4. Document `--show-sources` flag usage for debugging
+**Resolution**: Implemented comprehensive source validation system in Sprint 5. The new `validate_all_sources()` function validates all sources upfront before generation starts, checks for empty source lists per section, and displays validation reports. Tool now fails early with clear error messages when source patterns don't match any files, preventing LLM calls with empty context.
 
-## Full Documentation
+[Full details →](./ISSUE-001-empty-context-handling.md)
 
-- Master tracker: `/home/momuno/AI_MADE_Explorations/momuno_amplifier-convergence-sprint-agents/ai_working/doc_evergreen/issues/ISSUES_TRACKER.md`
-- Individual issues: `/home/momuno/AI_MADE_Explorations/momuno_amplifier-convergence-sprint-agents/ai_working/doc_evergreen/issues/ISSUE-*.md`
+---
 
-## Project Context
+### ISSUE-003: No User Feedback When Source Globs Match Zero Files
+- **Status**: Resolved
+- **Priority**: Medium
+- **Type**: Enhancement
+- **Component**: CLI / Source Validation
+- **Resolved in**: Sprint 5/6 (v0.2.0)
+- **Created**: 2025-11-18
+- **Resolved**: 2025-11-19
 
-**Project:** doc_evergreen - Documentation regeneration tool
-**Location:** `/home/momuno/AI_MADE_Explorations/momuno_amplifier-convergence-sprint-agents/doc_evergreen/`
-**Current Sprint:** Sprint 4 (completed CLI integration with source control)
-**User Feedback Date:** 2025-11-18
+**Resolution**: Addressed through Sprint 5 validation reporting (shows resolved file paths per section before generation) and Sprint 6 interactive visibility (section-by-section progress with source display). Users now have clear visibility into which sources are being used through upfront validation reports, per-section logging, and optional interactive checkpoints.
+
+[Full details →](./ISSUE-003-no-source-validation-feedback.md)
+
+---
+
+**Last Updated**: 2025-11-19
+**Total Issues**: 9 (7 open [1 deferred], 0 in progress, 2 resolved)

@@ -54,18 +54,22 @@ issues/
 2. /plan-sprints                   # Feature scope + existing issues → Sprints
 3. /tdd-cycle                      # Execute sprints with TDD
 4. /capture-issues doc_evergreen   # After implementation: Capture feedback → issues (stored)
-   └─→ (cycle repeats: issues feed into next /plan-sprints)
+   └─→ (cycle repeats: back to step 1 - /converge for next feature scope)
 ```
 
 **How issues flow through the cycle**:
 - **After TDD implementation** - User tests, provides feedback, issues captured
-- **Issues stored** in `ISSUES_TRACKER.md` for next planning cycle
-- **Next convergence** - Focuses on new feature scope without issue backlog distraction
-- **Next sprint planning** - Considers feature scope AND existing issues together
+- **Issues stored** in `ISSUES_TRACKER.md` for next iteration
+- **Next convergence** (`/converge`) - Define new feature scope
+  - Convergence agent reviews ISSUES_TRACKER.md
+  - Critical issues may influence feature scope decisions
+  - New features defined independently of issue backlog
+- **Next sprint planning** (`/plan-sprints`) - Integrates feature scope + existing issues
+  - Sprint planner reads ISSUES_TRACKER.md
   - Decides which issues fit naturally with planned features
   - Prioritizes critical issues that should be addressed first
-  - Defers lower-priority issues to later sprints
-- **Cycle continues** - Implement → test → capture → converge → plan → implement...
+  - Defers lower-priority issues to later versions
+- **Cycle continues** - Implement → test → capture → **converge** → plan → implement...
 
 **Outputs feed into**:
 - `sprint-planner` - Reads ISSUES_TRACKER.md and integrates issues into sprint plans
@@ -117,6 +121,24 @@ Agent: ✅ Captured 2 issues:
 - **Include examples** - Commands you ran, output you got
 - **Multiple issues OK** - Agent will parse and organize
 - **Don't worry about structure** - Agent creates that
+
+---
+
+## After This
+
+Once issue capture is complete:
+
+**Recommended next step**: `/converge` - Define next feature scope
+- Review captured issues may influence what you want to build next
+- Critical issues may drive feature priorities
+- Define new feature scope independently, then integrate issues during sprint planning
+
+**Alternative paths**:
+- Address critical issues immediately (focused work session)
+- Review and prioritize issues in ISSUES_TRACKER.md
+- Wait for more feedback before planning next iteration
+
+**The cycle continues**: capture → **converge** → plan → implement → capture...
 
 ---
 

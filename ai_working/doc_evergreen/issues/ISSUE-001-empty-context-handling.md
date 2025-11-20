@@ -1,10 +1,11 @@
 # ISSUE-001: Tool Proceeds with Empty Context Instead of Failing Early
 
-**Status:** Open
+**Status:** Resolved
 **Priority:** High
 **Type:** Bug
 **Created:** 2025-11-18
-**Updated:** 2025-11-18
+**Updated:** 2025-11-19
+**Resolved:** 2025-11-19 (Sprint 5 - v0.2.0)
 
 ## Description
 
@@ -154,7 +155,31 @@ source_paths = [Path(s) for s in validated]
 **Assigned to:** Sprint 5 (High Priority Bug Fix)
 **Rationale:** High impact on user experience, low implementation complexity, blocks effective tool usage
 
+## Resolution
+
+**Resolved in:** Sprint 5 (v0.2.0 - Chunked Generation)
+**Implementation:** Source validation system with fail-early behavior
+
+**How it was fixed:**
+
+Sprint 5 implemented a comprehensive source validation system (`source_validator.py`) that:
+1. **Validates all sources upfront** before generation starts (fail early)
+2. **Checks for empty source lists** per section and fails with clear error
+3. **Displays validation report** showing which sources were resolved for each section
+4. **Prevents LLM calls with empty context** by validating before generation begins
+
+The new `validate_all_sources()` function:
+- Traverses the template tree and resolves sources for each section
+- Reports error if any section has zero sources
+- Shows file counts and resolved paths in validation report
+- Exits cleanly before attempting generation
+
+This completely eliminates the issue of proceeding with empty context. Users now get immediate, actionable feedback when source patterns don't match any files.
+
 ## Comments / Updates
+
+### 2025-11-19
+Issue marked as resolved. Implemented in Sprint 5 as part of the source validation system. The upfront validation approach prevents the tool from ever calling the LLM with empty context.
 
 ### 2025-11-18
 Issue captured from user feedback. Root cause identified in source resolution flow. Proposed solution is a simple validation check with clear error messaging.

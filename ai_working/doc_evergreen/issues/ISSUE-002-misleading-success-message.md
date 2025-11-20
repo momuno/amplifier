@@ -1,10 +1,11 @@
 # ISSUE-002: Misleading Success Message When Generated Content Contains Errors
 
-**Status:** Open
+**Status:** Open (Deferred)
 **Priority:** Medium
 **Type:** Enhancement
 **Created:** 2025-11-18
-**Updated:** 2025-11-18
+**Updated:** 2025-11-19
+**Deferred:** v0.2.0 - Handled by section review workflow
 
 ## Description
 
@@ -158,6 +159,17 @@ if has_error:
 **Rationale:** Medium priority, enhances user trust, low implementation complexity
 
 ## Comments / Updates
+
+### 2025-11-19
+**Issue deferred in v0.2.0**. The section-by-section review workflow introduced in Sprint 6 provides an alternative solution:
+- Users can review each section as it's generated (interactive mode)
+- Sections with errors are caught during generation, not after
+- The upfront source validation (ISSUE-001 fix) prevents empty context errors
+- Combined with ISSUE-003 (source visibility), users have clear feedback during generation
+
+**Deferral rationale**: The new chunked generation workflow with section review checkpoints addresses the core problem (catching errors during generation) more effectively than post-hoc error detection would. The original proposal (pattern matching for error content) becomes less necessary when users review sections incrementally.
+
+**Reconsider**: If users frequently accept error content in auto mode (non-interactive), this issue should be revisited to add error pattern detection.
 
 ### 2025-11-18
 Issue captured from user feedback. The success message creates false confidence when content contains errors. Proposed solution adds pattern-based detection with preview snippet.

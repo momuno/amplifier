@@ -1,10 +1,11 @@
 # ISSUE-003: No User Feedback When Source Globs Match Zero Files
 
-**Status:** Open
+**Status:** Resolved
 **Priority:** Medium
 **Type:** Enhancement
 **Created:** 2025-11-18
-**Updated:** 2025-11-18
+**Updated:** 2025-11-19
+**Resolved:** 2025-11-19 (Sprint 5/6 - v0.2.0)
 
 ## Description
 
@@ -148,7 +149,35 @@ else:
 **Assigned to:** Sprint 5 (User Experience Improvement)
 **Rationale:** Medium priority, improves debuggability, low implementation complexity, natural companion to ISSUE-001
 
+## Resolution
+
+**Resolved in:** Sprint 5/6 (v0.2.0 - Chunked Generation)
+**Implementation:** Source visibility in validation reports and per-section logging
+
+**How it was addressed:**
+
+Sprint 5 implemented validation reporting that shows which sources are used:
+1. **Validation report** shows resolved file paths per section before generation
+2. **Per-section logging** displays which sources are being used during generation
+3. **Source count display** shows how many files were found for each section
+4. **Clear failure messages** when sections have no sources (combined with ISSUE-001 fix)
+
+Sprint 6 enhanced visibility with:
+1. **Interactive checkpoints** showing section-by-section progress
+2. **Source display** at each checkpoint showing which files contributed
+3. **Context flow visibility** showing how sections build on each other
+
+While the original proposal suggested showing sources in the main workflow, the implemented solution provides visibility through:
+- Upfront validation reports (shows all sources before generation)
+- Section-by-section progress (shows sources as they're used)
+- Interactive mode (optional checkpoints with full source visibility)
+
+This addresses the core issue: users now have clear visibility into which sources are being used and can quickly identify when patterns don't match expected files.
+
 ## Comments / Updates
+
+### 2025-11-19
+Issue marked as resolved. Implemented across Sprint 5 (validation reports) and Sprint 6 (interactive visibility). The combination of upfront validation and per-section logging provides the needed source visibility.
 
 ### 2025-11-18
 Issue captured from user feedback. Users need visibility into source resolution to understand why generation fails or succeeds. Proposed solution adds source count summary to main workflow.
