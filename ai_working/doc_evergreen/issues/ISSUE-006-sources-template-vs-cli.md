@@ -230,3 +230,37 @@ doc-update --sources "src/*.py,docs/*.md" template.json
 
 ### 2025-11-19
 Issue captured from user feedback. User encountered error and didn't know whether to fix in template or via CLI flag. This is a critical usability issue affecting tool comprehension.
+
+---
+
+## RESOLUTION
+
+**Resolved in**: Sprint 9 Day 2 (v0.3.0)
+**Commit**: 665fad5 - "feat(doc_evergreen): Sprint 9 Day 2 - source documentation and enhanced error messages"
+**Date**: 2025-11-20
+
+**What was done**:
+
+**Comprehensive Source Documentation** (TEMPLATES.md expanded by 280+ lines):
+1. **Understanding Sources** section - Explains per-section source specification clearly
+2. **Glob Pattern Support** - Complete reference table with examples
+3. **Source Resolution** - Explains relative path resolution with examples
+4. **Common Source Patterns** - 4 real-world patterns (README, API, Module, Installation)
+5. **Choosing Good Sources** - DO/DON'T lists with rationale
+6. **Source File Limits** - Performance guidelines
+7. **Troubleshooting Sources** - 3 common issues with specific solutions
+
+**Enhanced Error Messages**:
+1. source_validator.py - "No sources found" error now shows:
+   - Which patterns failed to match
+   - 3 possible causes
+   - Actionable fixes with examples
+   - Link to documentation: `TEMPLATES.md#source-resolution`
+
+**Documentation clarifies**:
+- Sources are per-section (template), not global
+- No CLI --sources flag in regen-doc (removed in v0.3.0)
+- Resolution is relative to template location
+- Examples for every common use case
+
+**Issue fully resolved** - Source specification is now thoroughly documented with examples and clear error messages.

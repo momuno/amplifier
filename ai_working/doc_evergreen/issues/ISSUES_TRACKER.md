@@ -17,66 +17,6 @@ Displays "✅ Accepted: README.md updated" even when generated content contains 
 
 ---
 
-### ISSUE-004: CLI help text unclear about output file location
-- **Status**: Open
-- **Priority**: Medium
-- **Type**: Enhancement (UX)
-- **Component**: CLI (`doc_evergreen/cli.py`)
-- **Assigned to**: TBD
-- **Created**: 2025-11-19
-- **Sprint**: TBD
-
-First-time users don't understand where output files will be created when running `doc-update`. The `--output` help text says "Override output path from template" but doesn't explain that templates contain an `output` field or where the default location is.
-
-[Full details →](./ISSUE-004-cli-help-text-unclear.md)
-
----
-
-### ISSUE-005: No example templates or documentation about template creation
-- **Status**: Open
-- **Priority**: High
-- **Type**: Enhancement (Documentation)
-- **Component**: Documentation, Examples
-- **Assigned to**: TBD
-- **Created**: 2025-11-19
-- **Sprint**: TBD (High Priority - Onboarding)
-
-Users attempting to use doc_evergreen don't know where to find example templates or how to create their own. No example templates exist in the repository and no documentation explains template structure or creation process.
-
-[Full details →](./ISSUE-005-no-example-templates.md)
-
----
-
-### ISSUE-006: Unclear whether sources belong in template vs CLI argument
-- **Status**: Open
-- **Priority**: High
-- **Type**: Bug / Documentation
-- **Component**: CLI, Template System, Documentation
-- **Assigned to**: TBD
-- **Created**: 2025-11-19
-- **Sprint**: TBD (High Priority - Usability)
-
-Users are confused about how to specify source files - template has `sources` field per section, CLI has `--sources` flag. Not documented which to use, precedence rules, or what happens when sources are missing.
-
-[Full details →](./ISSUE-006-sources-template-vs-cli.md)
-
----
-
-### ISSUE-007: No progress or activity feedback during generation
-- **Status**: Open
-- **Priority**: High
-- **Type**: Enhancement (UX)
-- **Component**: CLI (`doc_evergreen/cli.py`)
-- **Assigned to**: TBD
-- **Created**: 2025-11-19
-- **Sprint**: TBD (High Priority - UX)
-
-CLI provides no output during generation. Users see blank terminal and don't know if tool is working, hung, or crashed. Especially problematic for long-running multi-section generations.
-
-[Full details →](./ISSUE-007-no-progress-feedback.md)
-
----
-
 ### ISSUE-008: Unclear what "chunked" vs "single-shot" modes do
 - **Status**: Open
 - **Priority**: Medium
@@ -145,5 +85,65 @@ CLI advertises two generation modes but single-shot mode isn't implemented. Both
 
 ---
 
-**Last Updated**: 2025-11-19
-**Total Issues**: 9 (7 open [1 deferred], 0 in progress, 2 resolved)
+### ISSUE-004: CLI help text unclear about output file location
+- **Status**: ✅ Resolved
+- **Priority**: Medium
+- **Type**: Enhancement (UX)
+- **Component**: CLI
+- **Resolved in**: Sprint 8 Day 4 (v0.3.0)
+- **Created**: 2025-11-19
+- **Resolved**: 2025-11-20
+
+**Resolution**: Created new `regen-doc` command with comprehensive help text including Quick Start guide, detailed workflow explanation, and examples. Help text now clearly explains template structure and output path behavior.
+
+[Full details →](./ISSUE-004-cli-help-text-unclear.md)
+
+---
+
+### ISSUE-005: No example templates or documentation about template creation
+- **Status**: ✅ Resolved
+- **Priority**: High
+- **Type**: Enhancement (Documentation)
+- **Component**: Documentation, Examples
+- **Resolved in**: Sprint 8 Day 3 & Sprint 10 Day 1 (v0.3.0)
+- **Created**: 2025-11-19
+- **Resolved**: 2025-11-20
+
+**Resolution**: Created 5 example templates (2 learning examples + 3 production templates) and comprehensive documentation (TEMPLATES.md, USER_GUIDE.md, BEST_PRACTICES.md totaling 1,260+ lines). All acceptance criteria met.
+
+[Full details →](./ISSUE-005-no-example-templates.md)
+
+---
+
+### ISSUE-006: Unclear whether sources belong in template vs CLI argument
+- **Status**: ✅ Resolved
+- **Priority**: High
+- **Type**: Bug / Documentation
+- **Component**: Template System, Documentation
+- **Resolved in**: Sprint 9 Day 2 (v0.3.0)
+- **Created**: 2025-11-19
+- **Resolved**: 2025-11-20
+
+**Resolution**: Expanded TEMPLATES.md with 280+ lines of source specification documentation covering glob patterns, resolution behavior, common patterns, and troubleshooting. Enhanced error messages to show actionable fixes. Clarified that sources are per-section in templates (no global CLI flag in v0.3.0).
+
+[Full details →](./ISSUE-006-sources-template-vs-cli.md)
+
+---
+
+### ISSUE-007: No progress or activity feedback during generation
+- **Status**: ✅ Resolved
+- **Priority**: High
+- **Type**: Enhancement (UX)
+- **Component**: CLI, ChunkedGenerator
+- **Resolved in**: Sprint 9 Day 1 (v0.3.0)
+- **Created**: 2025-11-19
+- **Resolved**: 2025-11-20
+
+**Resolution**: Implemented complete progress feedback system with progress callbacks, timing tracking, section progress display ([1/N]), source file display, and completion markers. Integrated into CLI with real-time output. 9 tests validate functionality.
+
+[Full details →](./ISSUE-007-no-progress-feedback.md)
+
+---
+
+**Last Updated**: 2025-11-20
+**Total Issues**: 9 (3 open [1 deferred], 0 in progress, 6 resolved)

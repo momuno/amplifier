@@ -162,3 +162,38 @@ doc_evergreen/
 
 ### 2025-11-19
 Issue captured from user feedback. User couldn't find any templates to use as examples or reference. This is a critical onboarding gap that makes the tool difficult to adopt.
+
+---
+
+## RESOLUTION
+
+**Resolved in**: Sprint 8 Day 3 & Sprint 10 Day 1 (v0.3.0)
+**Commits**:
+- 36ece9a - Sprint 8 Day 3: Example templates and comprehensive documentation
+- 11f3ebc - Sprint 10 Day 1: Real-world template examples
+**Date**: 2025-11-20
+
+**What was created**:
+
+**Example Templates** (Sprint 8):
+1. `examples/simple.json` - Basic 2-section template for learning
+2. `examples/nested.json` - Hierarchical structure demonstration
+
+**Production Templates** (Sprint 10):
+3. `templates/amplifier_readme.json` - Multi-component library (9 sections, PRIMARY test case)
+4. `templates/cli_tool_guide.json` - CLI tool documentation (10 sections)
+5. `templates/self_documenting.json` - Self-documentation example (9 sections)
+
+**Documentation** (Sprint 8):
+- Created comprehensive `TEMPLATES.md` (400+ lines) explaining:
+  - Template structure with complete examples
+  - All field references
+  - How to create templates step-by-step
+  - Source specification (expanded in Sprint 9 with 280+ lines)
+  - Best practices
+
+**Additional Documentation** (Sprint 10):
+- `USER_GUIDE.md` (520 lines) - References all examples
+- `BEST_PRACTICES.md` (340 lines) - Template design patterns
+
+**All acceptance criteria met** - Users now have 5 example templates, comprehensive documentation, and step-by-step guides.

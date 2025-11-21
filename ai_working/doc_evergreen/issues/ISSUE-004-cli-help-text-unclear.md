@@ -1,11 +1,13 @@
-# ISSUE-001: CLI help text unclear about output file location
+# ISSUE-004: CLI help text unclear about output file location
 
-**Status**: Open
+**Status**: ✅ RESOLVED
 **Priority**: Medium
 **Type**: Enhancement (UX)
 **Component**: CLI (`doc_evergreen/cli.py`)
 **Created**: 2025-11-19
-**Updated**: 2025-11-19
+**Resolved**: 2025-11-20
+**Resolved in**: Sprint 8 Day 4 (v0.3.0)
+**Resolution Commit**: 0f3a127
 
 ---
 
@@ -171,3 +173,38 @@ None yet
 - Could also consider improving the README with template structure examples
 - Low implementation cost (just update help string)
 - High impact for first-time user experience
+
+---
+
+## RESOLUTION
+
+**Resolved in**: Sprint 8 Day 4 (v0.3.0)
+**Commit**: 0f3a127 - "feat(doc_evergreen): complete Sprint 8 Day 4 - integration testing and polish"
+**Date**: 2025-11-20
+
+**What was done**:
+1. Created new `regen-doc` command replacing `doc-update` with comprehensive help text
+2. Added Quick Start guide to main CLI help
+3. Added detailed workflow explanation to regen-doc help
+4. Included examples for all common use cases
+5. Explained both Sprint 5 and Sprint 8 template formats
+
+**Help text improvements**:
+```python
+@click.group()
+def cli():
+    """doc_evergreen - AI-powered documentation generation from templates.
+
+    Generate and maintain documentation by defining templates with sections,
+    prompts, and source files. The system regenerates docs as your code evolves.
+
+    Quick Start:
+      1. Create a template (see examples/ directory)
+      2. Run: regen-doc your-template.json
+      3. Review changes and approve
+
+    Documentation: See TEMPLATES.md for template creation guide
+    """
+```
+
+**Issue fully resolved** - CLI help is now comprehensive and clear for first-time users.
