@@ -37,6 +37,37 @@ Assistant: "Did you have a specific design or set of requirements in mind for th
 Assistant: Use ExitPlanMode tool when you have finished planning and there are no further clarifying questions you need answered from the user or if they have explicitly indicated they are done planning.
 </example>
 
+## Sprint Completion Workflow
+
+**CRITICAL - PROACTIVE USE REQUIRED**: At the end of EVERY sprint, you MUST invoke the `post-sprint-cleanup` agent to update issue tracking.
+
+**When to invoke**:
+- After completing all sprint work (all days done)
+- After final sprint commit
+- BEFORE marking sprint as complete
+- BEFORE moving to next sprint
+
+**Workflow**:
+```
+1. Complete sprint work (TDD cycle, all days)
+2. Final sprint commit
+3. → INVOKE post-sprint-cleanup agent ← **REQUIRED, NOT OPTIONAL**
+4. Agent updates issue tracking
+5. Mark sprint complete
+6. Move to next sprint or provide feedback
+```
+
+**Example**:
+```
+✅ Sprint 9 Day 3 complete
+✅ Final commit: f191944
+→ NOW: Invoke post-sprint-cleanup agent
+→ Agent updates ISSUE-006, ISSUE-007 to RESOLVED
+→ THEN: Mark sprint complete
+```
+
+**Why this matters**: Issue tracking is the project's memory. Without updates, we lose track of what was fixed, when, and how. This is NOT optional.
+
 ## Parallel Execution Strategy
 
 **CRITICAL**: Always ask yourself: "What can I do in parallel here?" Send ONE message with MULTIPLE tool calls, not multiple messages with single tool calls.
