@@ -47,13 +47,46 @@ Get productive in 5 minutes.
 
 ### Installation
 
-```bash
-# Install doc_evergreen
-pip install doc-evergreen
+**Development Usage** (doc_evergreen is not yet published to PyPI):
 
-# Verify installation
-doc-evergreen --help
+**Linux/macOS**:
+```bash
+# From doc_evergreen directory
+cd doc_evergreen
+PYTHONPATH=.. uv run python -m cli regen-doc examples/simple.json
 ```
+
+**Windows (PowerShell)**:
+```powershell
+# From doc_evergreen directory
+cd doc_evergreen
+$env:PYTHONPATH=".."; uv run python -m cli regen-doc examples/simple.json
+```
+
+**Windows (CMD)**:
+```cmd
+cd doc_evergreen
+set PYTHONPATH=..
+uv run python -m cli regen-doc examples/simple.json
+```
+
+**Universal approach** (works on all platforms):
+```bash
+# From project root
+uv run python -c "import sys; sys.path.insert(0, '.'); from doc_evergreen.cli import cli; cli()" regen-doc doc_evergreen/examples/simple.json
+```
+
+**Recommended: Create a Make command** (cross-platform with uv):
+
+Add to project `Makefile`:
+```makefile
+doc-regen:
+	cd doc_evergreen && PYTHONPATH=.. uv run python -m cli regen-doc $(TEMPLATE)
+
+# Usage: make doc-regen TEMPLATE=examples/simple.json
+```
+
+**Throughout this guide**, when you see `regen-doc <template>`, use the appropriate command for your platform above.
 
 ### Create Your First Template
 
