@@ -1,11 +1,11 @@
 # ISSUE-011: Add project_root Support for Standalone Tool Usage
 
-**Status:** Open
-**Priority:** High
+**Status:** Superseded (Better Solution Implemented)
+**Priority:** N/A (Superseded)
 **Type:** Feature
 **Created:** 2025-11-20
-**Updated:** 2025-11-20
-**Beads ID:** (not yet created)
+**Resolved:** 2025-11-20 (Sprints 11-12)
+**Resolution:** Superseded by convention-based cwd approach (simpler, zero config)
 
 ## Description
 
@@ -265,7 +265,103 @@ Initial issue created based on architectural design discussion. This represents 
 4. **Absolute escape hatch**: Absolute paths work for power users
 
 **Next Steps:**
-1. Validate design with convergence-architect
-2. Create detailed implementation plan
-3. Set up v0.4.0 sprint planning
-4. Consider related architectural improvements (multi-project templates?)
+1. ~~Validate design with convergence-architect~~ ✅ Done
+2. ~~Create detailed implementation plan~~ ✅ Done
+3. ~~Set up v0.4.0 sprint planning~~ ✅ Done
+4. ~~Consider related architectural improvements~~ ✅ Evaluated and chose simpler approach
+
+---
+
+## RESOLUTION
+
+**Resolved in:** Sprints 11-12 (v0.4.0)
+**Commits:** Standalone repo (9 commits)
+**Date:** 2025-11-20
+**Resolution Type:** Superseded by Better Design
+
+### What We Did Instead
+
+During convergence session, evaluated 3 approaches and chose **Convention over Configuration**:
+
+**Implemented Solution (BETTER than project_root):**
+```bash
+# Install tool once
+pip install -e /path/to/doc-evergreen
+
+# Use from ANY project
+cd /my-project                  # Your project root
+doc-evergreen init              # Creates .doc-evergreen/
+doc-evergreen regen-doc readme  # Sources from cwd!
+```
+
+**Why This is Better:**
+- ✅ Zero configuration (no project_root field needed)
+- ✅ Natural mental model (run from project = document that project)
+- ✅ Simpler templates (one less field to specify)
+- ✅ Obvious behavior (cwd IS the project)
+- ✅ Familiar pattern (.doc-evergreen/ like .github/)
+
+**What Was Implemented:**
+1. **Installable Package** (Sprint 11):
+   - pyproject.toml with CLI entry point
+   - src-layout structure
+   - Works globally after `pip install`
+
+2. **Convention-Based Resolution** (Sprint 11):
+   - `base_dir = Path.cwd()` (not template location)
+   - Sources relative to where command runs
+   - Output relative to cwd
+
+3. **Template Discovery** (Sprint 12):
+   - .doc-evergreen/ convention directory
+   - Short names: `regen-doc readme`
+   - Templates stored with project
+
+4. **Init Command** (Sprint 12):
+   - `doc-evergreen init` bootstraps projects
+   - Creates .doc-evergreen/readme.json
+   - Ready-to-use starter template
+
+**Tests:** 119 passing (36 new tests for v0.4.0 features)
+
+**Documentation:**
+- INSTALLATION.md - Complete install guide
+- MIGRATION_v0.3_to_v0.4.md - Breaking changes explained
+- Updated USER_GUIDE.md and BEST_PRACTICES.md
+
+### Why Original Design Was Rejected
+
+The `project_root` field approach had issues:
+- ❌ Required configuration (field in every template)
+- ❌ More complex (3-way resolution: CLI > template > cwd)
+- ❌ Less obvious (which takes priority?)
+- ❌ Two sources of truth (template field + CLI param)
+
+### Comparison
+
+**Original Proposal:**
+```json
+{"project_root": "../my-app", "document": {...}}
+```
+```bash
+doc-evergreen regen-doc --project-root ../my-app template.json
+```
+
+**Implemented Solution:**
+```bash
+cd /my-app  # Just change directory!
+doc-evergreen regen-doc readme
+```
+
+**The convention approach is dramatically simpler.**
+
+### User Impact
+
+**Migration:** Existing v0.3.0 users need to:
+1. Install tool: `pip install -e .`
+2. Update source paths (remove `../` if templates were in subdirectory)
+3. Optionally adopt .doc-evergreen/ convention
+
+See MIGRATION_v0.3_to_v0.4.md for complete guide.
+
+**Result:** Much better UX than original proposal would have provided.

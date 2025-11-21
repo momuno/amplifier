@@ -160,53 +160,20 @@ Makefile `regen-doc` target doesn't expose the `--output` CLI option that the un
 
 ---
 
-**Last Updated**: 2025-11-20
-**Total Issues**: 10 (4 open [1 deferred], 0 in progress, 6 resolved)
-# Issues Tracker: doc_evergreen
+### ISSUE-011: Add project_root Support for Standalone Tool Usage
+- **Status**: ✅ Resolved (Superseded)
+- **Priority**: N/A
+- **Type**: Feature
+- **Component**: Architecture
+- **Resolved in**: Sprints 11-12 (v0.4.0)
+- **Created**: 2025-11-20
+- **Resolved**: 2025-11-20
 
-**Last Updated:** 2025-11-20
+**Resolution**: Superseded by convention-based cwd approach (Sprints 11-12). Instead of adding `project_root` field, implemented simpler solution: run from project root (cwd = project), templates in `.doc-evergreen/`, zero configuration. Dramatically simpler than original proposal. See MIGRATION_v0.3_to_v0.4.md.
 
-## Summary
+[Full details →](./ISSUE-011-project-root-support.md)
 
-| Status | Count |
-|--------|-------|
-| Open | 1 |
-| In Progress | 0 |
-| Resolved | 0 |
-| **Total** | **1** |
+---
 
-## Issues by Priority
-
-### High
-- [ISSUE-011](./ISSUE-011-project-root-support.md) - Add project_root support for standalone tool usage
-
-### Medium
-(None)
-
-### Low
-(None)
-
-### Critical
-(None)
-
-## Issues by Type
-
-### Features (1)
-- [ISSUE-011](./ISSUE-011-project-root-support.md) - Add project_root support for standalone tool usage
-
-### Bugs (0)
-(None)
-
-### Enhancements (0)
-(None)
-
-## Issues by Status
-
-### Open (1)
-- [ISSUE-011](./ISSUE-011-project-root-support.md) - High - Add project_root support for standalone tool usage
-
-### In Progress (0)
-(None)
-
-### Resolved (0)
-(None)
+**Last Updated**: 2025-11-21
+**Total Issues**: 11 (3 open [1 deferred], 0 in progress, 8 resolved)
