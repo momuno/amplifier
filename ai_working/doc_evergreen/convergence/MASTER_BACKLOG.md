@@ -4,7 +4,7 @@
 
 **Philosophy**: Nothing is lost. Ideas wait here until the right "reconsider when" conditions are met.
 
-**Last Updated**: 2025-11-19
+**Last Updated**: 2025-11-20
 
 ---
 
@@ -12,11 +12,12 @@
 
 | Category | Count | Notes |
 |----------|-------|-------|
-| **Implemented** | 8 features | Sprints 1-4 (Problem A), Sprints 5-7 (Problem B MVP) |
+| **Implemented** | 18 features | Sprints 1-7 (v0.1.0-v0.2.0), Sprints 8-10 (v0.3.0) |
 | **Problem A Deferred** | 23 features | From template-system convergence |
 | **Problem B Deferred** | 13 features | From chunked-generation convergence |
 | **Test Case Deferred** | 21 features | From test-case-basic-regen convergence |
-| **Total Backlog** | 57 features | Available for future releases |
+| **Standalone Tool Deferred** | 15 features | From 2025-11-20 standalone-tool convergence |
+| **Total Backlog** | 72 features | Available for future releases |
 
 ---
 
@@ -37,16 +38,111 @@
 - [x] Source validation (ISSUE-001 fix)
 - [x] Source visibility (ISSUE-003 fix)
 
-### Test Case (v0.3.0 - Basic Regeneration - TBD)
-- [ ] Template-based generation (`.md.template` files)
-- [ ] Source context gathering (auto-read from `{{INCLUDE:}}`)
-- [ ] Manual regeneration command (`amplifier regen-doc`)
-- [ ] Structure preservation (static sections untouched)
-- [ ] Change detection (diff + user confirmation)
+### Test Case (v0.3.0 - Basic Regeneration - Sprints 8-10)
+- [x] Template-based regeneration (JSON templates)
+- [x] Change detection (unified diff)
+- [x] Manual regeneration command (`regen-doc`)
+- [x] Diff preview with user approval
+- [x] Progress feedback during generation
+- [x] Iterative refinement workflow
+- [x] Source specification per section
+- [x] Comprehensive documentation (TEMPLATES.md, USER_GUIDE.md, BEST_PRACTICES.md)
+- [x] Real-world template examples
+- [x] Integration testing (70 tests)
+
+### Standalone Tool (v0.4.0 - Convention-Based - Sprint 11+)
+- [ ] Proper Python package (pyproject.toml + entry point)
+- [ ] Convention-based discovery (cwd = project root)
+- [ ] Template directory convention (`.doc-evergreen/`)
+- [ ] Init command (bootstrap projects)
+- [ ] Updated documentation for standalone usage
 
 ---
 
 ## 🔄 Active Deferred Features
+
+### Standalone Tool Deferred (from 2025-11-20 convergence)
+
+**Convergence**: [2025-11-20-standalone-tool](./2025-11-20-standalone-tool/)
+
+#### 1. PyPI Publishing
+- **Reconsider When**: 10+ external users requesting pip install
+- **Effort**: 1-2 days
+- **Value**: Easier discovery and installation
+
+#### 2. Advanced Template Discovery
+- **Reconsider When**: Users request mono-repo support or template sharing
+- **Effort**: 3-4 hours
+- **Value**: Multi-project template management
+
+#### 3. Project-Level Config File
+- **Reconsider When**: Users have 5+ templates with duplicated settings
+- **Effort**: 2-3 hours
+- **Value**: Reduce configuration duplication
+
+#### 4. Template Marketplace
+- **Reconsider When**: 5+ projects documented, common patterns emerge
+- **Effort**: 1-2 days
+- **Value**: Community template sharing
+
+#### 5. Watch Mode / Auto-Regeneration
+- **Reconsider When**: Users report frequent manual regeneration friction
+- **Effort**: 4-6 hours
+- **Value**: Automated doc updates on file changes
+
+#### 6. CI/CD Integration Helpers
+- **Reconsider When**: Multiple users implementing CI/CD, patterns emerge
+- **Effort**: 3-4 hours
+- **Value**: Pre-built workflow templates
+
+#### 7. Multi-Project Aggregation
+- **Reconsider When**: User requests "document my mono-repo"
+- **Effort**: 1-2 days
+- **Value**: Cross-project documentation
+
+#### 8. IDE Integration
+- **Reconsider When**: Tool widely adopted, users request editor integration
+- **Effort**: 1-2 weeks
+- **Value**: In-editor documentation workflow
+
+#### 9. Git Integration
+- **Reconsider When**: Users consistently forget to commit docs
+- **Effort**: 4-6 hours
+- **Value**: Automated git operations
+
+#### 10. Single-Shot Mode (ISSUE-009)
+- **Reconsider When**: Performance issues with chunked mode
+- **Effort**: 1 day
+- **Value**: Alternative generation strategy
+
+#### 11. Mode Clarity Documentation (ISSUE-008)
+- **Reconsider When**: Single-shot mode implemented
+- **Effort**: 2-3 hours
+- **Value**: Clear mode selection guidance
+
+#### 12. Template Versioning
+- **Reconsider When**: Template format changes break old templates
+- **Effort**: 4-6 hours
+- **Value**: Version compatibility management
+
+#### 13. Dry-Run Mode
+- **Reconsider When**: Users want preview without generation cost
+- **Effort**: 2-3 hours
+- **Value**: Zero-cost preview
+
+#### 14. Backup/Rollback
+- **Reconsider When**: Users report data loss incidents
+- **Effort**: 4-6 hours
+- **Value**: Safety net for overwrite protection
+
+#### 15. Performance Optimization
+- **Reconsider When**: Generation takes >30s per section consistently
+- **Effort**: 1-2 days
+- **Value**: Faster generation for large projects
+
+---
+
+## Previously Deferred Features
 
 ### Problem B - Phase 2: Post-Order Validation (After v0.2.0)
 
