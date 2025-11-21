@@ -27,15 +27,27 @@ check: ## Run code quality checks
 	@echo "Running quality checks..."
 	cd .. && make check
 
-regen-doc: ## Regenerate documentation from template (TEMPLATE=path/to/template.json [AUTO=true])
+regen-doc: ## Regenerate documentation from template (TEMPLATE=path [AUTO=true] [OUTPUT=path])
 	@if [ -z "$(TEMPLATE)" ]; then \
 		echo "Error: TEMPLATE parameter required"; \
-		echo "Usage: make regen-doc TEMPLATE=examples/simple.json"; \
-		echo "       make regen-doc TEMPLATE=templates/amplifier_readme.json AUTO=true"; \
+		echo ""; \
+		echo "Usage:"; \
+		echo "  make regen-doc TEMPLATE=examples/simple.json"; \
+		echo "  make regen-doc TEMPLATE=templates/amplifier_readme.json AUTO=true"; \
+		echo "  make regen-doc TEMPLATE=examples/simple.json OUTPUT=custom/path.md"; \
+		echo "  make regen-doc TEMPLATE=examples/simple.json OUTPUT=test.md AUTO=true"; \
+		echo ""; \
+		echo "Parameters:"; \
+		echo "  TEMPLATE  - Path to template JSON file (required)"; \
+		echo "  AUTO      - Set to 'true' for auto-approve mode (optional)"; \
+		echo "  OUTPUT    - Override output path from template (optional)"; \
 		exit 1; \
 	fi
-	@if [ "$(AUTO)" = "true" ]; then \
-		PYTHONPATH=.. uv run python -m cli regen-doc --auto-approve $(TEMPLATE); \
-	else \
-		PYTHONPATH=.. uv run python -m cli regen-doc $(TEMPLATE); \
-	fi
+	@CMD="PYTHONPATH=.. uv run python -m cli regen-doc"; \
+	if [ "$(AUTO)" = "true" ]; then \
+		CMD="$$CMD --auto-approve"; \
+	fi; \
+	if [ -n "$(OUTPUT)" ]; then \
+		CMD="$$CMD --output $(OUTPUT)"; \
+	fi; \
+	$$CMD $(TEMPLATE)

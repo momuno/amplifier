@@ -47,6 +47,21 @@ CLI advertises two generation modes but single-shot mode isn't implemented. Both
 
 ---
 
+### ISSUE-010: Makefile `regen-doc` Missing OUTPUT Parameter
+- **Status**: Open
+- **Priority**: Medium
+- **Type**: Bug (Missing Feature)
+- **Component**: Makefile
+- **Assigned to**: Next polish/UX sprint
+- **Created**: 2025-11-20
+- **Sprint**: TBD (UX Polish)
+
+Makefile `regen-doc` target doesn't expose the `--output` CLI option that the underlying command supports. Usage message also doesn't mention OUTPUT parameter, creating discoverability issues and incomplete feature parity between Makefile wrapper and CLI.
+
+[Full details →](./ISSUE-010-makefile-missing-output-param.md)
+
+---
+
 ## In Progress
 
 (No issues currently in progress)
@@ -146,4 +161,4 @@ CLI advertises two generation modes but single-shot mode isn't implemented. Both
 ---
 
 **Last Updated**: 2025-11-20
-**Total Issues**: 9 (3 open [1 deferred], 0 in progress, 6 resolved)
+**Total Issues**: 10 (4 open [1 deferred], 0 in progress, 6 resolved)
