@@ -211,8 +211,8 @@ def regen_doc(template_path: str, auto_approve: bool, output: str | None):
         click.echo(f"Error: Failed to parse template: {e}", err=True)
         raise click.Abort()
 
-    # 3. Initialize generator
-    generator = ChunkedGenerator(template_obj, Path(template_path).parent)
+    # 3. Initialize generator (use cwd as base_dir for intuitive source resolution)
+    generator = ChunkedGenerator(template_obj, Path.cwd())
 
     # Progress callback to show generation progress
     def progress_callback(msg: str) -> None:

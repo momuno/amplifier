@@ -198,41 +198,43 @@ Doc-evergreen uses Python's `glob` module, supporting standard glob syntax:
 
 ### Source Resolution
 
-**Important**: Source paths are resolved **relative to the template file's location**.
+**Important**: Source paths are resolved **relative to where you run the command** (current working directory).
 
 #### Resolution Examples
 
-If your template is at `project/templates/readme.json`:
+If you run from `doc_evergreen/` directory:
 
 ```json
 {
-  "sources": ["../README.md"]           // → project/README.md
+  "sources": ["README.md"]           // → doc_evergreen/README.md
 }
 ```
 
 ```json
 {
-  "sources": ["../src/**/*.py"]         // → All .py files in project/src/
+  "sources": ["src/**/*.py"]         // → All .py files in doc_evergreen/src/
 }
 ```
 
 ```json
 {
-  "sources": ["README.md"]              // → project/templates/README.md (probably wrong!)
+  "sources": ["../amplifier/README.md"]  // → Parent dir amplifier/README.md
 }
 ```
 
-**Best Practice**: Use `../` to go up from templates directory to project root:
+**Best Practice**: Paths relative to doc_evergreen/ root (where you run `make regen-doc`):
 
 ```
-project/
+doc_evergreen/           ← You run make from here (cwd)
 ├── templates/
-│   └── readme.json          ← Template here
-├── README.md                ← Use "../README.md"
+│   └── readme.json
+├── README.md            ← Use "README.md"
 ├── src/
-│   ├── main.py              ← Use "../src/**/*.py"
+│   ├── main.py          ← Use "src/**/*.py"
 │   └── utils/
-│       └── helper.py        ← Matched by "../src/**/*.py"
+│       └── helper.py    ← Matched by "src/**/*.py"
+├── amplifier/           ← Parent dir
+│   └── README.md        ← Use "../amplifier/README.md"
 ```
 
 ### Common Source Patterns
