@@ -39,14 +39,20 @@ Loading convergent-dev context for comprehensive help...
 
 ### Main Workflow Commands (Run in Order)
 
-**1. `/convergent-dev:1-converge`** - Ideation to Feature Scope
+**1. `/convergent-dev:1-converge`** - From Ideas to Feature Scope
 
+**Three scenarios supported:**
+- **MVP Convergence**: Starting fresh → Define MVP scope
+- **Next Feature**: Ongoing project → Find what to build next
+- **Organize Backlog**: Many ideas → Structure into manageable features
+
+Agent asks you to select scenario, then guides through:
 - Explore all possibilities (DIVERGE)
 - Organize ideas (CAPTURE)
-- Define feature scope (CONVERGE)
+- Define scope or structure (CONVERGE)
 - Preserve deferred ideas (DEFER)
-- **Output**: `convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md`
-- **Duration**: 45-60 minutes
+- **Output**: `convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md` + Updated backlog
+- **Duration**: 30-60 minutes
 
 **2. `/convergent-dev:2-plan-sprints`** - Feature Scope to Executable Sprints
 

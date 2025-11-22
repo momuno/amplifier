@@ -1,57 +1,108 @@
 # Workflow: Ideation to Feature Scope (Convergence-Architect)
 
-**Purpose**: Transform divergent exploration into a focused feature scope definition with all ideas thoughtfully preserved.
+**Purpose**: Transform ideas into focused, shippable scope through structured convergence. Adapts to three distinct scenarios based on your current situation.
 
 **Agent**: `convergence-architect`
-**Command**: `/converge [project-name]`
-**Duration**: 30-60 minutes
+**Command**: `/convergent-dev:1-converge`
+**Duration**: 30-60 minutes (varies by scenario)
 **Output**: FEATURE_SCOPE.md + DEFERRED_FEATURES.md + Updated MASTER_BACKLOG.md
+
+---
+
+## Three Convergence Scenarios
+
+The convergence process serves different purposes depending on where you are in your project journey. **The agent will ask you to select your scenario first**, then adapt the entire process accordingly.
+
+### Scenario 1: MVP Convergence (Starting Fresh)
+
+**When to use:**
+- Starting a brand new project
+- No existing code or backlog yet
+- Need to define the minimum viable product
+
+**Your situation:**
+- "I have lots of ideas for a new thing"
+- "What's the smallest thing I can ship that provides value?"
+- "I need to narrow down to an MVP scope"
+
+**Convergence goal:** Define what makes up your MVP (first feature set)
+
+**Process emphasis:**
+- Problem clarity: What problem are we solving?
+- User focus: For whom and why now?
+- MVP boundary: Ruthless scope reduction to 3-5 must-have features
+- Comprehensive deferral: Everything else goes to backlog with rationale
+
+**Output emphasis:**
+- Clear MVP definition in FEATURE_SCOPE.md
+- Rich MASTER_BACKLOG.md with all deferred features
+- Strong "why this MVP" rationale
+
+### Scenario 2: Next Feature Convergence (Ongoing Project)
+
+**When to use:**
+- Existing project with features already built
+- Have a backlog from previous work
+- Need to decide what to build next
+
+**Your situation:**
+- "What should I work on next?"
+- "Given what exists, what adds the most value now?"
+- "How do I sequence features intelligently?"
+
+**Convergence goal:** Identify next feature scope given current state
+
+**Process emphasis:**
+- Context review: What exists, what's working, what's missing
+- Backlog surfacing: Review past ideas, identify promising candidates
+- Value sequencing: What unlocks the most value right now?
+- Building on existing: How does this extend what we have?
+
+**Output emphasis:**
+- Context-aware feature scope in FEATURE_SCOPE.md
+- Updated MASTER_BACKLOG.md reflecting new ideas
+- Clear "why this next" rationale (not just "what")
+
+### Scenario 3: Backlog Organization (Idea Management)
+
+**When to use:**
+- Have many messy, unstructured ideas
+- Need to organize before deciding "what's next"
+- Want to explore without commitment pressure
+
+**Your situation:**
+- "I have tons of ideas that are overwhelming"
+- "Need to structure these into manageable features"
+- "Not ready to commit to 'next' yet, just want to organize"
+
+**Convergence goal:** Break ideas into feature-scoped backlog items
+
+**Process emphasis:**
+- Feature decomposition: How do ideas naturally group?
+- Backlog quality: Clear, feature-level descriptions
+- Dependency identification: What builds on what?
+- Less commitment pressure: It's okay if nothing becomes "next"
+
+**Output emphasis:**
+- Well-structured MASTER_BACKLOG.md with feature-level items
+- Optional: Surface 2-3 promising candidates for future consideration
+- May not create FEATURE_SCOPE.md (that can come later)
 
 ---
 
 ## When to Use This Workflow
 
 ✅ **Use when:**
-
-- Starting a new project or feature
-- Have lots of ideas but unclear scope
-- Need to narrow possibilities to shippable feature scope
-- Feeling overwhelmed by options
+- Starting a new project (Scenario 1)
+- Finding next feature for ongoing project (Scenario 2)
+- Organizing messy ideas into backlog (Scenario 3)
+- Have lots of ideas but need structure
 - Want to ensure nothing gets lost while converging
-- Pure exploration/ideation (capturing ideas even if nothing becomes "next")
-- Finding next feature from existing backlog
 
 ❌ **Don't use when:**
-
-- Requirements are already crystal clear
-- Feature scope is obvious and small
+- Requirements are already crystal clear and small
 - Just need to implement a well-defined task
-
----
-
-## Backlog Integration
-
-**The convergence-architect agent reviews your existing `MASTER_BACKLOG.md` to:**
-
-1. **Surface relevant items** - "You mentioned X, which relates to item Y in the backlog"
-2. **Suggest promising candidates** - "Item Z from the backlog might be a good next feature"
-3. **Connect related ideas** - "This new idea builds on backlog item W"
-4. **Remind you of past ideation** - You won't remember everything - the backlog will
-
-**Two common scenarios:**
-
-**Scenario 1: Pure Exploration/Ideation**
-
-- Dump ideas freely, capture everything
-- Most/all ideas might get deferred to backlog - that's perfectly fine!
-- Goal is to preserve thinking, not force a feature scope
-
-**Scenario 2: Finding Next Feature**
-
-- Agent surfaces promising items from backlog
-- New ideas explored alongside backlog review
-- Convergence identifies the best "next vertical slice"
-- Remaining ideas return to backlog
+- No ideation or convergence needed
 
 ---
 

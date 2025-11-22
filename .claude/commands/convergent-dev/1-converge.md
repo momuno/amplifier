@@ -1,79 +1,53 @@
-# Convergence: Ideation to Feature Scope
+# Convergence: From Ideas to Feature Scope
 
-Transform divergent exploration into a focused feature scope definition.
+Transform ideas into focused, shippable scope through structured convergence.
 
 **What this does:**
 - Launches the `convergence-architect` agent
-- **Reviews existing `MASTER_BACKLOG.md`** to surface relevant/promising items
 - Guides you through 4 phases: DIVERGE → CAPTURE → CONVERGE → DEFER
-- Creates `FEATURE_SCOPE.md` and `DEFERRED_FEATURES.md` in dated convergence directory
-- Updates `MASTER_BACKLOG.md` with all deferred features
-- Preserves all ideas while identifying what to build first
-- **Supports pure exploration mode** - It's fine if everything gets deferred!
+- Adapts based on your specific situation (MVP, next feature, or backlog organization)
+- Creates `FEATURE_SCOPE.md` and updates `MASTER_BACKLOG.md`
 
-**Usage:**
-- Takes 45-60 minutes
-- Best with dedicated focus time
-- Have your ideas ready (rough is fine!)
+**Three convergence scenarios:**
 
-**Backlog Integration:**
+**Scenario 1: MVP Convergence** (Starting Fresh)
+- "I'm starting a new project and need to define the MVP scope"
+- Explore all possibilities, converge to minimal viable product
+- Output: Clear MVP scope + comprehensive backlog of deferred features
 
-The convergence-architect agent reviews your existing `MASTER_BACKLOG.md` to:
+**Scenario 2: Next Feature** (Ongoing Project)
+- "I have an ongoing project and need to find what to build next"
+- Reviews existing backlog, explores new ideas, identifies what adds most value
+- Output: Next feature scope + updated backlog + "why this next"
 
-1. **Surface relevant items**: "You mentioned X, which relates to item Y in the backlog"
-2. **Suggest promising candidates**: "Item Z from the backlog might be a good next feature"
-3. **Connect related ideas**: "This new idea builds on backlog item W"
-4. **Remind you of past ideation**: You won't remember everything - the backlog will
+**Scenario 3: Organize Backlog** (Idea Management)
+- "I have many ideas that need to be structured into manageable features"
+- Break down ideas into feature-scoped backlog items
+- Output: Well-structured backlog (may not pick "next" yet)
 
-**Two common scenarios:**
+**The agent will ask you to select your scenario first**, then adapt the process accordingly.
 
-**Scenario 1: Pure Exploration/Ideation**
-- "I have a bunch of ideas to explore and capture"
-- Diverge freely, capture everything to backlog
-- Most/all ideas might get deferred - that's fine!
-- A pause may be needed to later "unearth" backlog items to define feature scope
-- **Note**: FEATURE_SCOPE.md must eventually be defined before moving to sprint planning
+**Process (all scenarios):**
+1. **DIVERGE**: Explore all possibilities freely
+2. **CAPTURE**: Organize ideas into structures
+3. **CONVERGE**: Identify scope or structure (depends on scenario)
+4. **DEFER**: Preserve all non-scope ideas in backlog
 
-**Scenario 2: Finding Next Feature**
-- "What should I work on next?"
-- Agent surfaces promising items from backlog
-- New ideas are explored alongside backlog review
-- Convergence identifies the best "next vertical slice"
-- Remaining ideas return to backlog
-
-**Process:**
-1. **DIVERGE** (10-20 min): Explore all possibilities freely
-2. **CAPTURE** (10-15 min): Organize ideas into structures
-3. **CONVERGE** (15-20 min): Identify the feature scope (3-5 features max)
-4. **DEFER** (10-15 min): Preserve all non-scope ideas with reconsider conditions
+**Typical duration:** 30-60 minutes depending on scenario and complexity
 
 **Outputs:**
-- `ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md`
+- `ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/FEATURE_SCOPE.md` (Scenarios 1 & 2)
 - `ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/DEFERRED_FEATURES.md`
-- `ai_working/[project-name]/convergence/YYYY-MM-DD-feature-name/CONVERGENCE_COMPLETE.md`
-- `ai_working/[project-name]/convergence/MASTER_BACKLOG.md` (updated)
-
-**What you'll need to provide:**
-- Project/feature name
-- Your ideas and use cases (can be rough)
-- Answers to forcing questions during convergence
+- `ai_working/[project-name]/convergence/MASTER_BACKLOG.md` (updated or created)
 
 **After this:**
-- Use `/convergent-dev:2-plan-sprints` to break scope into executable sprints with version number
-- Or review/adjust feature scope first
+- **Scenarios 1 & 2**: Use `/convergent-dev:2-plan-sprints` to break scope into executable sprints
+- **Scenario 3**: Review backlog, then decide if ready to converge to next feature
 
-**Philosophy:**
-- Diverge freely without constraint
-- Converge ruthlessly to shippable scope
-- Defer thoughtfully (nothing is lost!)
-- 3-5 features max for initial scope
-
-**Documentation:** See `ai_context/convergent-dev/CONVERGENCE_PROCESS.md` for detailed guide.
+**Full methodology:** See `ai_context/convergent-dev/CONVERGENCE_PROCESS.md`
 
 ---
 
-**Ready? Let's converge your idea to a shippable MVP.**
+**Ready to start?**
 
-I'll now launch the convergence-architect agent to guide you through the process.
-
-**First question:** What project or feature are you exploring?
+I'll launch the convergence-architect agent who will first ask you to select your scenario, then guide you through the convergence process.
