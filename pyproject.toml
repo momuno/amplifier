@@ -27,7 +27,7 @@ package = true
 
 [tool.uv.sources]
 amplifier-core = { git = "https://github.com/microsoft/amplifier-core", branch = "main" }
-amplifier-app-cli = { git = "https://github.com/microsoft/amplifier-app-cli", branch = "main" }
+amplifier-app-cli = { git = "https://github.com/momuno/amplifier-app-cli", branch = "feat/support-profiles-agent-list" }
 
 [tool.hatch.build.targets.wheel]
 packages = [
